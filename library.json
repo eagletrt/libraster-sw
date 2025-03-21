@@ -1,26 +1,31 @@
 {
   "$schema": "https://raw.githubusercontent.com/platformio/platformio-core/develop/platformio/assets/schema/library.json",
-  "name": "LibraryTemplate",
-  "version": "1.0.0",
-  "description": "Templates for libraries compatible with the PlatformIO ecosystem",
+  "name": "LibRaster",
+  "version": "0.1.0",
+  "description": "A simple library that provides a way to define and raster a graphic layout",
   "keywords": [
-    "template"
+    "graphics", "rasterizer", "embedded"
   ],
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/eagletrt/libraster-sw"
   },
   "authors": [
     {
-      "name": "Antonio Gelain",
-      "email": "antonio.gelain2@gmail.com",
+      "name": "Alessandro Bridi",
+      "email": "alessandro.bridi15@gmail.com",
       "maintainer": true
     }
   ],
   "license": "AGPL-3.0-only",
   "frameworks": "*",
   "platforms": "*",
-  "headers": [],
+  "headers": [
+      "libraster.h",
+      "libraster-api.h",
+      "fontutils.h",
+      "fontutils-api.h"
+  ],
   "examples": [],
   "export": {
     "include": [

@@ -1,36 +1,59 @@
-# LIBSTM32-SW-TEMPLATE
+# LIBRASTER
 
-This repository serves as a template for libraries compatible with the
-[PlatformIO ecosystem](https://docs.platformio.org/en/latest/librarymanager/creating.html).
+This library is made to rasterize an interface defined by the user using only callbacks.
+
+## Why callbacks?
+
+The idea is to let the user decide how things are done. This helps with performances based on the platform, as using 2 for loops for drawing a square isn't always the best option. This library does not use dynamic allocation to make sure it stays compatible with every platform.
+
+> [!TIP]
+> On an STM32 you may want to use `DMA2D`, while using SDL2 you may want to use the function `SDL_FillRect` or just 2 for loops.
 
 ## Usage
 
-Before starting to develop the library, a couple of things need to be done:
-1. Change this README explaining the library and the functionalities that it offers
-2. Modify the `library.json` including:
-    - The **name** of the library
-    - The library **version**
-    - The **description** explaining what the library does and for which devices
-    - The list of **keywords**
-    - The repository **url** (and type if necessary)
-    - The list of **authors**
-    - The supported **frameworks** and **platforms** (if needed)
-    - The list of **header files** of the library
-    - The list of **examples**
-    - The file of the library to **export** (if needed)
+To use this library all you have to do is include `libraster-api.h` in your program, declare the interface and call the function `render_interface`, that uses **your** functions to draw the interface.
 
-## Structure
+> [!IMPORTANT]
+> If you're using 2 buffers, you still have to swap them yourself. This library still does not implement a way to do it.
 
-The code of the library should be splitted in sources which must be placed inside
-the `src` folder and headers which must be placed inside the `include` folder.
+```c
+Threshold ranges[] = {
+    {0.0f, 50.0f, 0x00FF00, 0x000000},
+    {50.1f, 100.0f, 0xFFFF00, 0x000000},
+    {100.1f, 200.0f, 0xFF0000, 0xFFFFFF}
+};
 
-Inside the `example` folder multiple source files should be placed to further
-explain how to use the library and how it works in different scenario.
+Thresholds thresholds[] = {
+    {ranges, 3}
+};
 
-The library must be tested with the maximum possible code coverage, the source
-code used to run the unit tests should be put inside the `test` folder.
+Label l1;
+create_label(&l1, "XD", (Coords){310, 95}, KONEXY, 40, FONT_ALIGN_CENTER);
+Value v1;
+create_value(&v1, 51, false, (Coords){140, 80}, KONEXY, 70, FONT_ALIGN_CENTER, (union Colors){ .thresholds = thresholds}, THRESHOLDS);
 
-No other folders should be created besides the ones described before if not
-necessary, to handle complex file structures nested folders can be used.
+Value v2;
+create_value(&v2, 51, true, (Coords){ 196, 80 }, KONEXY, 70, FONT_ALIGN_CENTER, (union Colors){ .slider = (struct Slider){0xff00ff00, ANCHOR_BOTTOM, 0, 200, 3}}, SLIDER);
 
-For more info check the READMEs inside the corresponding folders.
+Label l2;
+create_label(&l2, "PROVA", (Coords){196, 80}, KONEXY, 70, FONT_ALIGN_CENTER);
+
+Value v3;
+create_value(&v3, 51.0, true, (Coords){ 196, 80 }, KONEXY, 70, FONT_ALIGN_CENTER, (union Colors){ .interpolation = (struct LinearInterpolation){0xff000000, 0xff00ff00, 0.0, 200.0}}, INTERPOLATION);
+
+Box boxes[] = {
+    { 1, 0x1, { 2, 2, 397, 237 }, 0xff000000, 0xffffffff, &l1, &v1 },
+    { 1, 0x2, { 401, 2, 397, 237 }, 0xff000000, 0xffffffff, NULL, &v2 },
+    { 1, 0x3, { 2, 241, 397, 237 }, 0xff000000, 0xffffffff, &l2, NULL },
+    { 1, 0x4, { 401, 241, 397, 237 }, 0xff000000, 0xffffffff, NULL, &v3 }
+};
+```
+
+This is a simple but complete interface, and to render it just call `render_interface` like this:
+```c
+render_interface(boxes, 4, draw_line_callback, draw_rectangle_callback);
+```
+
+> [!HINT]
+> There is an option called `GRAPHIC_OPT` inside `libraster.h` that changes how the library behaves (and some parameters in functions an structs).
+> This is useful on low power devices to greatly increase performances, but it may create visual artifacts in complex interfaces with overlapping boxes, so use with caution.
