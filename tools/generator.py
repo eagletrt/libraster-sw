@@ -159,10 +159,6 @@ def main():
         fonts = json.load(json_data)
         json_data.close()
 
-        for font in fonts:
-            name = font["name"]
-            os.makedirs(f"bitmaps/{name}", exist_ok=True)
-
         print("Bitmap generation...")
         sdf_datas, glyph_metadatas = generate_bitmaps_fixed(fonts)
 
