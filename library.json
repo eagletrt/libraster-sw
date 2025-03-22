@@ -26,7 +26,13 @@
       "fontutils.h",
       "fontutils-api.h"
   ],
-  "examples": [],
+  "examples": [
+      {
+          "name": "Full SDL Demo",
+          "base": "examples",
+          "files": [ "demosdl.c" ]
+      }
+  ],
   "export": {
     "include": [
       "src/**",
