@@ -5,6 +5,10 @@ from scipy.ndimage import distance_transform_edt
 import json
 
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+fonts_json_path = os.path.join(SCRIPT_DIR, "fonts.json")
+
+
 def compress_rle_4bit_paired(data):
     compressed = []
     i = 0
@@ -51,7 +55,8 @@ def generate_bitmaps_fixed(fonts):
     glyph_metadatas = []
 
     for font_json in fonts:
-        font = ImageFont.truetype(font_json["font"], font_json["size"])
+        font = ImageFont.truetype(os.path.join(SCRIPT_DIR, font_json["font"]),
+                                  font_json["size"])
 
         ascent, descent = font.getmetrics()
         total_height = ascent + descent
@@ -95,8 +100,8 @@ def generate_bitmaps_fixed(fonts):
 
 
 def generate_c_files(fonts, sdf_datas, glyph_metadatas):
-    c_file_path = os.path.join("../src", "fonts.c")
-    h_file_path = os.path.join("../include", "fonts.h")
+    c_file_path = os.path.join(SCRIPT_DIR, "..", "src", "fonts.c")
+    h_file_path = os.path.join(SCRIPT_DIR, "..", "include", "fonts.h")
 
     font_entries = []
     enum_entries = []
@@ -155,7 +160,7 @@ def generate_c_files(fonts, sdf_datas, glyph_metadatas):
 
 
 def main():
-    with open("fonts.json") as json_data:
+    with open(fonts_json_path) as json_data:
         fonts = json.load(json_data)
         json_data.close()
 
