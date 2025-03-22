@@ -1,5 +1,5 @@
 /**
- * @file libgraphics.c
+ * @file libraster-api.c
  * @date 2024-12-13
  * @author Alessandro Bridi [ale.bridi15@gmail.com]
  *

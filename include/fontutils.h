@@ -1,5 +1,5 @@
 /**
- * @file libfont.h
+ * @file fontutils.h
  * @date 2024-12-30
  * @author Alessandro Bridi [ale.bridi15@gmail.com]
  *
