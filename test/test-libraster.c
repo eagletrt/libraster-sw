@@ -1,14 +1,13 @@
 /**
  * @file test-libraster.c
- * @brief Test suite for libraster.c file
+ * @brief Test suite for libraster-api.c file
  *
  * @author Alessandro Bridi [ale.bridi15@gmail.com] 
  * @date 2025-03-23
  */ 
 
-#include "unity-h"
+#include "unity.h"
 #include "libraster-api.h"
-#include "fontutils-api.h"
 
 void check_get_box_found() {
     Box boxes[] = {
@@ -32,18 +31,16 @@ void check_get_box_not_found() {
 
 void check_label_building() {
     Label l;
-    FontName default;
-    create_label(&l, "Hello, World", (Coords){ 1, 1 }, default, 15, FONT_ALIGN_CENTER);
+    create_label(&l, "Hello, World", (Coords){ 1, 1 }, 0, 15, FONT_ALIGN_CENTER);
 
-    TEST_ASSERT_NOT_NULL(l);
+    TEST_ASSERT_NOT_NULL(&l);
 }
 
 void check_value_building() {
     Value v;
-    FontName default;
-    create_value(&v, 12.3, false, (Coords){ 1, 1 }, default, 15, FONT_ALIGN_CENTER, (Colors){ .interpolation = (LinearInterpolation){0, 0, 0.0, 0.0}}, INTERPOLATION);
+    create_value(&v, 12.3, false, (Coords){ 1, 1 }, 0, 15, FONT_ALIGN_CENTER, (Colors){ .interpolation = (LinearInterpolation){0, 0, 0.0, 0.0}}, INTERPOLATION);
 
-    TEST_ASSERT_NOT_NULL(v);
+    TEST_ASSERT_NOT_NULL(&v);
 }
 
 int main() {
