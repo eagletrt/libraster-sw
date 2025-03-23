@@ -54,6 +54,6 @@ This is a simple but complete interface, and to render it just call `render_inte
 render_interface(boxes, 4, draw_line_callback, draw_rectangle_callback);
 ```
 
-> [!HINT]
+> [!TIP]
 > There is an option called `GRAPHIC_OPT` inside `libraster.h` that changes how the library behaves (and some parameters in functions an structs).
 > This is useful on low power devices to greatly increase performances, but it may create visual artifacts in complex interfaces with overlapping boxes, so use with caution.
