@@ -82,7 +82,7 @@ typedef void (*clear_screen_callback_t)(void);
  *     - align Defines the alignement of the text
  */
 typedef struct _Label {
-    char* text;
+    char *text;
     Coords pos;
     FontName font;
     uint16_t font_size;
@@ -113,7 +113,7 @@ typedef struct _Threshold {
  *     - thresholds_num Number of thresholds in the array
  */
 typedef struct _Thresholds {
-    Threshold* threshold;
+    Threshold *threshold;
     uint8_t thresholds_num;
 } Thresholds;
 
@@ -177,7 +177,7 @@ typedef enum _ColorType {
  * @brief Contains the struct that defines one coloring method. ColorType should match the one placed in here.
  */
 typedef union _Colors {
-    Thresholds* thresholds;
+    Thresholds *thresholds;
     LinearInterpolation interpolation;
     Slider slider;
 } Colors;
@@ -226,9 +226,8 @@ typedef struct _Box {
     Rect rect;
     uint32_t default_bg_color;
     uint32_t default_fg_color;
-    Label* label;
-    Value* value;
+    Label *label;
+    Value *value;
 } Box;
-
 
 #endif // RASTER_H

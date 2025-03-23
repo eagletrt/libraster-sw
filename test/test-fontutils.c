@@ -4,7 +4,7 @@
  *
  * @author Alessandro Bridi [ale.bridi15@gmail.com] 
  * @date 2025-03-23
- */ 
+ */
 
 #include "unity.h"
 #include "fontutils-api.h"
@@ -39,4 +39,3 @@ int main() {
 
     UNITY_END();
 }
-

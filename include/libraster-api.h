@@ -20,7 +20,7 @@
  * @param draw_rectangle Draw rectangle callback
  * @param clear_screen Clear screen callback
  */
-void render_interface(Box* boxes, uint16_t num, draw_line_callback_t draw_line, draw_rectangle_callback_t draw_rectangle
+void render_interface(Box *boxes, uint16_t num, draw_line_callback_t draw_line, draw_rectangle_callback_t draw_rectangle
 #if GRAPHICS_OPT == 0
                       ,
                       clear_screen_callback_t clear_screen
@@ -37,7 +37,7 @@ void render_interface(Box* boxes, uint16_t num, draw_line_callback_t draw_line, 
  *     - Box pointer if found
  *     - NULL if not found
  */
-Box* get_box(Box* boxes, uint16_t num, uint16_t id);
+Box *get_box(Box *boxes, uint16_t num, uint16_t id);
 
 /**
  * @brief Utility to populate struct Label
@@ -49,7 +49,7 @@ Box* get_box(Box* boxes, uint16_t num, uint16_t id);
  * @param font_size Text size
  * @param align Alignment of font
  */
-void create_label(Label* label, char* text, Coords pos, FontName font, uint16_t font_size, FontAlign align);
+void create_label(Label *label, char *text, Coords pos, FontName font, uint16_t font_size, FontAlign align);
 
 /**
  * @brief Utility to populate struct Value
@@ -64,6 +64,6 @@ void create_label(Label* label, char* text, Coords pos, FontName font, uint16_t 
  * @param colors Pointer to color ranges
  * @param colors_num Number of color ranges
  */
-void create_value(Value* value, float val, bool is_float, Coords pos, FontName font, uint16_t font_size, FontAlign align, Colors colors, ColorType color_type);
+void create_value(Value *value, float val, bool is_float, Coords pos, FontName font, uint16_t font_size, FontAlign align, Colors colors, ColorType color_type);
 
 #endif // RASTER_API_H
