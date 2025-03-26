@@ -13,7 +13,12 @@
 #include "fonts.h"
 
 /**
- * @brief Callback used to draw pixel
+ * @brief Callback to draw a pixel row
+ * 
+ * @param x Position in pixel of the first pixel on x axis
+ * @param y Position in pixel of the first pixel on y axis
+ * @param lenght Lenght in pixel of the line
+ * @param color Color in ARGB8888 format
  */
 typedef void (*draw_line_callback_t)(uint16_t x, uint16_t y, uint16_t lenght, uint32_t color);
 

@@ -43,26 +43,14 @@ typedef struct _Coords {
     uint16_t y;
 } Coords;
 
-#ifndef TEXT_H
-/**
- * @brief Callback to draw a single pixel
- * 
- * @param x Position in pixel on x axis
- * @param y Position in pixel on y axis
- * @param lenght Lenght in pixel of the line
- * @param color Color in ARGB format
- */
-typedef void (*draw_line_callback_t)(uint16_t x, uint16_t y, uint16_t lenght, uint32_t color);
-#endif
-
 /**
   * @brief Callback to draw a rectangle (may use DMA2D)
   *
-  * @param x Position in piexel on x axis
-  * @param y Position in piexel on y axis
+  * @param x Position in pixel on x axis
+  * @param y Position in pixel on y axis
   * @param w Width in pixel of rectangle
   * @param h Height in pixel of rectangle
-  * @param color Color in ARGB format
+  * @param color Color in ARGB8888 format
   */
 typedef void (*draw_rectangle_callback_t)(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint32_t color);
 
