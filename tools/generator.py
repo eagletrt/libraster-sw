@@ -114,7 +114,8 @@ def generate_c_files(fonts, sdf_datas, glyph_metadatas):
         font_name = f["name"]
         font_size = f["size"]
         font_entries.append(
-            f"    {{ {font_size}, sdf_data_{font_name}_{font_size}, glyphs_{font_name}_{font_size} }},")
+            f"    {{ {font_size}, sdf_data_{font_name}_{font_size}, \
+glyphs_{font_name}_{font_size} }},")
         enum_entries.append(f"    {font_name.upper()}_{font_size},\n")
 
     with open(c_file_path, "w") as c_file, open(h_file_path, "w") as h_file:
@@ -165,7 +166,8 @@ def generate_c_files(fonts, sdf_datas, glyph_metadatas):
 
             c_file.write(f"const Glyph glyphs_{name}_{size}[] = {{\n")
             for offset, size, width, height in glyph_metadatas[j]:
-                c_file.write(f"    {{ {offset}, {size}, {width}, {height} }},\n")
+                c_file.write(f"    {{ {offset}, {size}, \
+{width}, {height} }},\n")
             c_file.write("};\n")
 
 
