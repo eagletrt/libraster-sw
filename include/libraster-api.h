@@ -20,7 +20,7 @@
  * @param draw_rectangle Draw rectangle callback
  * @param clear_screen Clear screen callback
  */
-void render_interface(Box *boxes, uint16_t num, draw_line_callback_t draw_line, draw_rectangle_callback_t draw_rectangle
+void render_interface(Box *boxes, uint16_t num, draw_line_callback_t draw_line, draw_rectangle_callback_t draw_rectangle, finished_rendering_callback_t finished_rendering
 #if GRAPHICS_OPT == 0
                       ,
                       clear_screen_callback_t clear_screen

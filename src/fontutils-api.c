@@ -8,7 +8,7 @@
 
 #include "fontutils-api.h"
 
-void _draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, float multiplier, int16_t glyph_width, int16_t glyph_height, int16_t *current_x, int16_t *current_y, uint32_t color, draw_line_callback_t line_callback) {
+void _draw_rle_series(uint8_t count, uint8_t value, float multiplier, int16_t glyph_width, int16_t glyph_height, int16_t *current_x, int16_t *current_y, uint32_t color, draw_line_callback_t line_callback) {
     if (value < 30) {
         *current_x += count;
         *current_y += *current_x / glyph_width;
@@ -20,10 +20,10 @@ void _draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, floa
 
     uint32_t blended_color = (color & 0x00ffffff) | ((uint32_t)value << 24);
 
-    int16_t start_x = x + (*current_x * multiplier);
-    int16_t start_y = y + (*current_y * multiplier);
-    int16_t end_x = x + ((*current_x + count) * multiplier);
-    int16_t end_y = y + ((*current_y + 1) * multiplier);
+    int16_t start_x = *current_x * multiplier;
+    int16_t start_y = *current_y * multiplier;
+    int16_t end_x = (*current_x + count) * multiplier;
+    int16_t end_y = (*current_y + 1) * multiplier;
     int16_t draw_width = (int16_t)(end_x - start_x + 0.5f);
     int16_t draw_height = (int16_t)(end_y - start_y + 0.5f);
 
@@ -44,7 +44,7 @@ void _draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, floa
         return;
 }
 
-void _render_glyph(const Glyph *glyph, FontName font, uint16_t x, uint16_t y, uint32_t color, float multiplier, draw_line_callback_t line_callback) {
+void _render_glyph(const Glyph *glyph, FontName font, uint32_t color, float multiplier, draw_line_callback_t line_callback) {
     const uint8_t *data = &fonts[font].sdf_data[glyph->offset];
     uint16_t remaining_size = glyph->size;
 
@@ -62,12 +62,12 @@ void _render_glyph(const Glyph *glyph, FontName font, uint16_t x, uint16_t y, ui
         uint8_t count2 = *data++;
         remaining_size -= 2;
 
-        _draw_rle_series(count1, value1, x, y, multiplier, glyph_width, glyph_height, &current_x, &current_y, color, line_callback);
-        _draw_rle_series(count2, value2, x, y, multiplier, glyph_width, glyph_height, &current_x, &current_y, color, line_callback);
+        _draw_rle_series(count1, value1, multiplier, glyph_width, glyph_height, &current_x, &current_y, color, line_callback);
+        _draw_rle_series(count2, value2, multiplier, glyph_width, glyph_height, &current_x, &current_y, color, line_callback);
     }
 }
 
-void draw_text(uint16_t x, uint16_t y, FontAlign align, FontName font, const char *text, uint32_t color, uint16_t pixel_size, draw_line_callback_t line_callback) {
+void draw_text(uint16_t x, uint16_t y, FontAlign align, FontName font, const char *text, uint32_t color, uint16_t pixel_size, draw_line_callback_t line_callback, finished_rendering_callback_t finished_rendering) {
     if (align != FONT_ALIGN_LEFT) {
         uint16_t len = text_length(text, pixel_size, font);
         if (align == FONT_ALIGN_CENTER)
@@ -83,8 +83,11 @@ void draw_text(uint16_t x, uint16_t y, FontAlign align, FontName font, const cha
         int char_code = *text++;
         if (char_code >= 32 && char_code <= 126) {
             const Glyph *glyph = &fonts[font].glyphs[char_code - 32];
-            _render_glyph(glyph, font, x, y, color, multiplier, line_callback);
-            x += glyph->width * multiplier;
+            _render_glyph(glyph, font, color, multiplier, line_callback);
+            uint16_t w = glyph->width * multiplier;
+            uint16_t h = glyph->height * multiplier;
+            x += w;
+            finished_rendering(x, y, w, h);
         }
     }
 }

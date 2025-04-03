@@ -14,6 +14,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "fontutils.h"
+#include "fonts.h"
 
 /**
  * @brief Rectangle definition for the UI

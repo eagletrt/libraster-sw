@@ -10,7 +10,6 @@
 #define FONTUTILS_H
 
 #include <stdint.h>
-#include "fonts.h"
 
 /**
  * @brief Callback to draw a pixel row
@@ -21,6 +20,16 @@
  * @param color Color in ARGB8888 format
  */
 typedef void (*draw_line_callback_t)(uint16_t x, uint16_t y, uint16_t lenght, uint32_t color);
+
+/**
+ * @brief Callback that tells the user the rendering is finished and ready to be copied in the frambebuffer
+ *
+ * @param x Position in pixel on x axis where to copy the rendered glyph
+ * @param y Position in pixel on y axis where to copy the rendered glyph
+ * @param width Width of the rendered glyph
+ * @param height Height of the rendered glyph
+ */
+typedef void (*finished_rendering_callback_t)(uint16_t x, uint16_t y, uint16_t width, uint16_t height);
 
 /**
  * @brief Represents the alignment of the rendering of the text

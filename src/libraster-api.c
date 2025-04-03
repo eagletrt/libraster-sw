@@ -64,7 +64,7 @@ void _calculate_slider_position(Box* box, uint32_t* x, uint32_t* y, uint32_t* wi
     }
 }
 
-void _draw_text_box(Box* box, draw_line_callback_t draw_line, draw_rectangle_callback_t draw_rectangle) {
+void _draw_text_box(Box* box, draw_line_callback_t draw_line, draw_rectangle_callback_t draw_rectangle, finished_rendering_callback_t finished_rendering) {
 #if GRAPHICS_OPT
     if (!box->updated)
         return;
@@ -106,7 +106,8 @@ void _draw_text_box(Box* box, draw_line_callback_t draw_line, draw_rectangle_cal
                   buf,
                   fg_color,
                   box->value->font_size,
-                  draw_line);
+                  draw_line,
+                  finished_rendering);
     }
 
     if (box->label) {
@@ -118,11 +119,12 @@ void _draw_text_box(Box* box, draw_line_callback_t draw_line, draw_rectangle_cal
                   box->label->text,
                   fg_color,
                   box->label->font_size,
-                  draw_line);
+                  draw_line,
+                  finished_rendering);
     }
 }
 
-void render_interface(Box* text_boxes, uint16_t num, draw_line_callback_t draw_line, draw_rectangle_callback_t draw_rectangle
+void render_interface(Box* text_boxes, uint16_t num, draw_line_callback_t draw_line, draw_rectangle_callback_t draw_rectangle, finished_rendering_callback_t finished_rendering
 #if GRAPHICS_OPT == 0
                       ,
                       clear_screen_callback_t clear_screen
@@ -133,7 +135,7 @@ void render_interface(Box* text_boxes, uint16_t num, draw_line_callback_t draw_l
     clear_screen();
 #endif
     for (int i = 0; i < num; i++) {
-        _draw_text_box(text_boxes + i, draw_line, draw_rectangle);
+        _draw_text_box(text_boxes + i, draw_line, draw_rectangle, finished_rendering);
     }
 }
 
