@@ -18,9 +18,9 @@ To use this library all you have to do is include `libraster-api.h` in your prog
 
 ```c
 Threshold ranges[] = {
-    {0.0f, 50.0f, 0x00FF00, 0x000000},
-    {50.1f, 100.0f, 0xFFFF00, 0x000000},
-    {100.1f, 200.0f, 0xFF0000, 0xFFFFFF}
+    {0.0f, 50.0f, 0xff00ff00, 0xff000000},
+    {50.1f, 100.0f, 0xffffff00, 0xff000000},
+    {100.1f, 200.0f, 0xffff0000, 0xffffffff}
 };
 
 Thresholds thresholds[] = {
@@ -28,18 +28,18 @@ Thresholds thresholds[] = {
 };
 
 Label l1;
-create_label(&l1, "XD", (Coords){310, 95}, KONEXY, 40, FONT_ALIGN_CENTER);
+create_label(&l1, "XD", (Coords){310, 95}, KONEXY_120, 40, FONT_ALIGN_CENTER);
 Value v1;
-create_value(&v1, 51, false, (Coords){140, 80}, KONEXY, 70, FONT_ALIGN_CENTER, (union Colors){ .thresholds = thresholds}, THRESHOLDS);
+create_value(&v1, 51, false, (Coords){140, 80}, KONEXY_120, 70, FONT_ALIGN_CENTER, (Colors){ .thresholds = thresholds}, THRESHOLDS);
 
 Value v2;
-create_value(&v2, 51, true, (Coords){ 196, 80 }, KONEXY, 70, FONT_ALIGN_CENTER, (union Colors){ .slider = (struct Slider){0xff00ff00, ANCHOR_BOTTOM, 0, 200, 3}}, SLIDER);
+create_value(&v2, 51, true, (Coords){ 196, 80 }, KONEXY_120, 70, FONT_ALIGN_CENTER, (Colors){ .slider = (Slider){0xff00ff00, ANCHOR_BOTTOM, 0, 200, 3}}, SLIDER);
 
 Label l2;
-create_label(&l2, "PROVA", (Coords){196, 80}, KONEXY, 70, FONT_ALIGN_CENTER);
+create_label(&l2, "PROVA", (Coords){196, 80}, KONEXY_120, 70, FONT_ALIGN_CENTER);
 
 Value v3;
-create_value(&v3, 51.0, true, (Coords){ 196, 80 }, KONEXY, 70, FONT_ALIGN_CENTER, (union Colors){ .interpolation = (struct LinearInterpolation){0xff000000, 0xff00ff00, 0.0, 200.0}}, INTERPOLATION);
+create_value(&v3, 51.0, true, (Coords){ 196, 80 }, KONEXY_120, 70, FONT_ALIGN_CENTER, (Colors){ .interpolation = (LinearInterpolation){0xff000000, 0xff00ff00, 0.0, 200.0}}, INTERPOLATION);
 
 Box boxes[] = {
     { 1, 0x1, { 2, 2, 397, 237 }, 0xff000000, 0xffffffff, &l1, &v1 },
@@ -51,7 +51,7 @@ Box boxes[] = {
 
 This is a simple but complete interface, and to render it just call `render_interface` like this:
 ```c
-render_interface(boxes, 4, draw_line_callback, draw_rectangle_callback);
+render_interface(boxes, 4, draw_line_callback, draw_rectangle_callback, copy_bitmap_to_framebuffer);
 ```
 
 > [!TIP]

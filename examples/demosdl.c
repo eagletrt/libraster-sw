@@ -15,31 +15,45 @@ typedef struct
     SDL_Renderer *renderer;
 } SDLContext;
 
-void sdl_clear_screen() {
+#define W_MAX 120
+uint32_t *bm1;
+uint32_t *bm2;
+uint32_t *curr;
+
+void sdl_clear_screen()
+{
 }
 
 void sdl_draw_line(uint16_t x, uint16_t y, uint16_t lenght, uint32_t color) {
-    SDL_SetRenderDrawColor(SDL_GetRenderer(SDL_GetWindowFromID(1)),
-                           get_red(color),
-                           get_green(color),
-                           get_blue(color),
-                           get_alpha(color));
-    for (int i = 0; i < lenght; i++) {
-        SDL_RenderDrawPoint(SDL_GetRenderer(SDL_GetWindowFromID(1)), x + i, y);
+    for (int i=0; i<lenght; i++) {
+        curr[y*W_MAX+x+i] = color;
     }
 }
 
 void sdl_draw_rectangle(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint32_t color) {
-    SDL_Rect rect = { x, y, w, h };
+    SDL_Rect rect = {x, y, w, h};
     SDL_SetRenderDrawColor(SDL_GetRenderer(SDL_GetWindowFromID(1)),
-                           get_red(color),
-                           get_green(color),
-                           get_blue(color),
-                           get_alpha(color));
+                           get_red(color), get_green(color), get_blue(color), get_alpha(color));
     SDL_RenderFillRect(SDL_GetRenderer(SDL_GetWindowFromID(1)), &rect);
 }
 
+void sdl_copy_sprite(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
+    for (int i=0; i<w; i++) {
+        for (int j=0; j<h; j++) {
+            uint32_t color = curr[j*W_MAX+i];
+            curr[j*W_MAX+i] = 0;
+            SDL_SetRenderDrawColor(SDL_GetRenderer(SDL_GetWindowFromID(1)),
+                                   get_red(color), get_green(color), get_blue(color), get_alpha(color));
+            SDL_RenderDrawPoint(SDL_GetRenderer(SDL_GetWindowFromID(1)), i+x, j+y);
+        }
+    }
+    curr = curr == bm1 ? bm2 : bm1;
+}
+
 int main() {
+    bm1 = (uint32_t *)malloc(sizeof(uint32_t) * W_MAX * W_MAX);
+    bm2 = (uint32_t *)malloc(sizeof(uint32_t) * W_MAX * W_MAX);
+    curr = bm1;
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         SDL_Log("SDL_Init Error: %s", SDL_GetError());
         return 1;
@@ -52,8 +66,7 @@ int main() {
                                    WINDOW_WIDTH,
                                    WINDOW_HEIGHT,
                                    SDL_WINDOW_SHOWN),
-        .renderer = NULL
-    };
+        .renderer = NULL};
 
     if (!sdl_ctx.window) {
         SDL_Log("SDL_CreateWindow Error: %s", SDL_GetError());
@@ -71,29 +84,31 @@ int main() {
         return 1;
     }
 
+    SDL_SetRenderDrawBlendMode(sdl_ctx.renderer, SDL_BLENDMODE_BLEND);
+
     Threshold ranges[] = {
-        { 0.0f, 50.0f, 0x00FF00, 0x000000 },
-        { 50.1f, 100.0f, 0xFFFF00, 0x000000 },
-        { 100.1f, 200.0f, 0xFF0000, 0xFFFFFF }
+        {0.0f, 50.0f, 0xff00ff00, 0xff000000},
+        {50.1f, 100.0f, 0xffffff00, 0xff000000},
+        {100.1f, 200.0f, 0xffff0000, 0xffffffff}
     };
 
     Thresholds thresholds[] = {
-        { ranges, 3 }
+        {ranges, 3}
     };
 
     Label l1;
-    create_label(&l1, "XD", (Coords){ 310, 95 }, KONEXY_120, 40, FONT_ALIGN_CENTER);
+    create_label(&l1, "XD", (Coords){310, 95}, KONEXY_120, 40, FONT_ALIGN_CENTER);
     Value v1;
-    create_value(&v1, 51, false, (Coords){ 140, 80 }, KONEXY_120, 70, FONT_ALIGN_CENTER, (Colors){ .thresholds = thresholds }, THRESHOLDS);
+    create_value(&v1, 51, false, (Coords){140, 80}, KONEXY_120, 70, FONT_ALIGN_CENTER, (Colors){ .thresholds = thresholds}, THRESHOLDS);
 
     Value v2;
-    create_value(&v2, 51, true, (Coords){ 196, 80 }, KONEXY_120, 70, FONT_ALIGN_CENTER, (Colors){ .slider = (Slider){ 0xff00ff00, ANCHOR_BOTTOM, 0, 200, 3 } }, SLIDER);
+    create_value(&v2, 51, true, (Coords){ 196, 80 }, KONEXY_120, 70, FONT_ALIGN_CENTER, (Colors){ .slider = (Slider){0xff00ff00, ANCHOR_BOTTOM, 0, 200, 3}}, SLIDER);
 
     Label l2;
-    create_label(&l2, "PROVA", (Coords){ 196, 80 }, KONEXY_120, 70, FONT_ALIGN_CENTER);
+    create_label(&l2, "PROVA", (Coords){196, 80}, KONEXY_120, 70, FONT_ALIGN_CENTER);
 
     Value v3;
-    create_value(&v3, 51.0, true, (Coords){ 196, 80 }, KONEXY_120, 70, FONT_ALIGN_CENTER, (Colors){ .interpolation = (LinearInterpolation){ 0xff000000, 0xff00ff00, 0.0, 200.0 } }, INTERPOLATION);
+    create_value(&v3, 51.0, true, (Coords){ 196, 80 }, KONEXY_120, 70, FONT_ALIGN_CENTER, (Colors){ .interpolation = (LinearInterpolation){0xff000000, 0xff00ff00, 0.0, 200.0}}, INTERPOLATION);
 
     Box boxes[] = {
         { 1, 0x1, { 2, 2, 397, 237 }, 0xff000000, 0xffffffff, &l1, &v1 },
@@ -116,7 +131,7 @@ int main() {
         SDL_SetRenderDrawColor(sdl_ctx.renderer, 255, 255, 255, 255);
         SDL_RenderClear(sdl_ctx.renderer);
 
-        render_interface(boxes, 4, sdl_draw_line, sdl_draw_rectangle);
+        render_interface(boxes, 4, sdl_draw_line, sdl_draw_rectangle, sdl_copy_sprite);
 
         if (SDL_GetTicks() - last_time > 60) {
             Box *box = get_box(boxes, 4, 0x1);

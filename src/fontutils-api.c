@@ -86,8 +86,8 @@ void draw_text(uint16_t x, uint16_t y, FontAlign align, FontName font, const cha
             _render_glyph(glyph, font, color, multiplier, line_callback);
             uint16_t w = glyph->width * multiplier;
             uint16_t h = glyph->height * multiplier;
-            x += w;
             finished_rendering(x, y, w, h);
+            x += w;
         }
     }
 }
