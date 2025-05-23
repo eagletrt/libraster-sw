@@ -28,9 +28,9 @@
   ],
   "examples": [
       {
-          "name": "Full SDL Demo",
+          "name": "Full Demo",
           "base": "examples",
-          "files": [ "demosdl.c" ]
+          "files": [ "demo.c" ]
       }
   ],
   "export": {
