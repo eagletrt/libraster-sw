@@ -1,0 +1,16 @@
+// {{ datetime_info }}
+
+#include "fonts.h"
+{% for font in fonts %}
+const uint8_t sdf_data_{{ font.name }}_{{ font.size }}[] = {
+{%- for b in font.sdfs|batch(12) %}
+    {% for column in b %}{{ column }}, {% endfor %}
+{%- endfor %}
+};
+
+const Glyph glyphs_{{ font.name }}_{{ font.size }}[] = {
+{%- for g in font.glyphs %}
+    { {{ g.offset }}, {{ g.size }}, {{ g.width }}, {{ g.height }} },
+{%- endfor %}
+};
+{% endfor %}

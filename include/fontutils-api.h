@@ -17,9 +17,11 @@
  * @param x Position on x axis in buffer
  * @param y Position on y axis in buffer
  * @param align Alignment on x axis
+ * @param font Font name described (uppercase)
  * @param text Pointer to text to draw
  * @param color ARGB color value (alpha is ignored)
- * @param size Scale value
+ * @param pixel_size Size of the font to render
+ * @param line_callback Callback used to draw a line
  */
 void draw_text(uint16_t x, uint16_t y, FontAlign align, FontName font, const char *text, uint32_t color, uint16_t pixel_size, draw_line_callback_t line_callback);
 
