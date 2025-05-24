@@ -37,10 +37,6 @@
     "include": [
       "src/**",
       "include/**"
-    ],
-    "exclude": [
-        "tools/fonts.json",
-        "tools/KonexyFont.ttf"
     ]
   },
   "scripts": {
