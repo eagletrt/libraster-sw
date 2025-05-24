@@ -6,6 +6,7 @@ import json
 import datetime
 import argparse
 from pathlib import Path
+from jinja2 import Environment, FileSystemLoader
 
 
 parser = argparse.ArgumentParser()
@@ -47,7 +48,7 @@ def compress_rle_4bit_paired(data):
     return compressed
 
 
-def generate_bitmaps_fixed(fonts):
+def generate_bitmaps(fonts):
     def smoothstep(edge0, edge1, x):
         t = np.clip((x - edge0) / (edge1 - edge0), 0, 1)
         return t * t * (3 - 2 * t)
@@ -109,74 +110,22 @@ def generate_bitmaps_fixed(fonts):
     return sdf_datas, glyph_metadatas
 
 
-def generate_c_files(fonts, sdf_datas, glyph_metadatas):
+def generate_c_files(fonts):
     c_file_path = os.path.join(SCRIPT_DIR, "..", "src", "fonts.c")
     h_file_path = os.path.join(SCRIPT_DIR, "..", "include", "fonts.h")
 
     datetime_info = datetime.datetime.today().strftime("%H:%M:%S  %d/%m/%Y")
 
-    font_entries = []
-    enum_entries = []
+    env = Environment(loader=FileSystemLoader(SCRIPT_DIR))
+    c_template = env.get_template("templates/fonts.c.j2")
+    rendered = c_template.render(datetime_info=datetime_info, fonts=fonts)
+    with open(c_file_path, "w") as c_file:
+        c_file.write(rendered)
 
-    for f in fonts:
-        font_name = f["name"]
-        font_size = f["size"]
-        font_entries.append(
-            f"    {{ {font_size}, sdf_data_{font_name}_{font_size}, \
-glyphs_{font_name}_{font_size} }},")
-        enum_entries.append(f"    {font_name.upper()}_{font_size},\n")
-
-    with open(c_file_path, "w") as c_file, open(h_file_path, "w") as h_file:
-        # Header file content
-        h_file.write(f"// Generated on: {datetime_info}\n\n")
-        h_file.write("#ifndef FONTS_H\n")
-        h_file.write("#define FONTS_H\n\n")
-        h_file.write("#include <stdint.h>\n\n")
-        h_file.write("typedef struct _Glyph {\n")
-        h_file.write("    uint32_t offset;\n")
-        h_file.write("    uint16_t size;\n")
-        h_file.write("    uint16_t width;\n")
-        h_file.write("    uint16_t height;\n")
-        h_file.write("} Glyph;\n\n")
-
-        for font_json in fonts:
-            name = font_json["name"]
-            size = font_json["size"]
-            h_file.write(f"extern const uint8_t sdf_data_{name}_{size}[];\n")
-            h_file.write(f"extern const Glyph glyphs_{name}_{size}[];\n\n")
-        h_file.write("typedef struct _Font {\n")
-        h_file.write("    uint8_t size;\n")
-        h_file.write("    const uint8_t* sdf_data;\n")
-        h_file.write("    const Glyph* glyphs;\n")
-        h_file.write("} Font;\n\n")
-
-        h_file.write("typedef enum _FontName {\n")
-        h_file.write("".join(enum_entries))
-        h_file.write("} FontName;\n\n")
-
-        h_file.write("static const Font fonts[] = {\n")
-        h_file.write("\n".join(font_entries) + "\n")
-        h_file.write("};\n\n")
-        h_file.write("#endif // FONTS_H\n")
-
-        c_file.write(f"// Generated on: {datetime_info}\n\n")
-        c_file.write("#include \"fonts.h\"\n\n")
-
-        for j, sdf_data in enumerate(sdf_datas):
-            name = fonts[j]["name"]
-            size = fonts[j]["size"]
-            c_file.write(f"const uint8_t sdf_data_{name}_{size}[] = {{\n")
-            for i, value in enumerate(sdf_data):
-                c_file.write(f"{value}, ")
-                if (i + 1) % 12 == 0:
-                    c_file.write("\n")
-            c_file.write("};\n\n")
-
-            c_file.write(f"const Glyph glyphs_{name}_{size}[] = {{\n")
-            for offset, size, width, height in glyph_metadatas[j]:
-                c_file.write(f"    {{ {offset}, {size}, \
-{width}, {height} }},\n")
-            c_file.write("};\n")
+    h_template = env.get_template("templates/fonts.h.j2")
+    rendered = h_template.render(datetime_info=datetime_info, fonts=fonts)
+    with open(h_file_path, "w") as h_file:
+        h_file.write(rendered)
 
 
 def main():
@@ -184,10 +133,21 @@ def main():
         fonts = json.load(json_data)
 
         print("[libraster - generator.py] bitmap generation")
-        sdf_datas, glyph_metadatas = generate_bitmaps_fixed(fonts)
+        sdfs, glyphs = generate_bitmaps(fonts)
+        for i, font in enumerate(fonts):
+            font["sdfs"] = sdfs[i]
+            font["glyphs"] = [
+                {
+                    "offset": g[0],
+                    "size": g[1],
+                    "width": g[2],
+                    "height": g[3]
+                }
+                for g in glyphs[i]
+            ]
 
         print("[libraster - generator.py] C and H generation")
-        generate_c_files(fonts, sdf_datas, glyph_metadatas)
+        generate_c_files(fonts)
 
         print("[libraster - generator.py] ok")
 
