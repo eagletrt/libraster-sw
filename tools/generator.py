@@ -4,10 +4,18 @@ import numpy as np
 from scipy.ndimage import distance_transform_edt
 import json
 import datetime
+import argparse
+from pathlib import Path
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--json", type=Path, default=Path(__file__).parent
+                    / "fonts.json")
+args = parser.parse_args()
 
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-fonts_json_path = os.path.join(SCRIPT_DIR, "fonts.json")
+json_base = args.json.parent
 
 
 def compress_rle_4bit_paired(data):
@@ -56,7 +64,7 @@ def generate_bitmaps_fixed(fonts):
     glyph_metadatas = []
 
     for font_json in fonts:
-        font = ImageFont.truetype(os.path.join(SCRIPT_DIR, font_json["font"]),
+        font = ImageFont.truetype(os.path.join(json_base, font_json["font"]),
                                   font_json["size"])
 
         ascent, descent = font.getmetrics()
@@ -172,17 +180,16 @@ glyphs_{font_name}_{font_size} }},")
 
 
 def main():
-    with open(fonts_json_path) as json_data:
+    with open(os.path.join(json_base, "fonts.json")) as json_data:
         fonts = json.load(json_data)
-        json_data.close()
 
-        print("Bitmap generation...")
+        print("[libraster - generator.py] bitmap generation")
         sdf_datas, glyph_metadatas = generate_bitmaps_fixed(fonts)
 
-        print("C and H files generation...")
+        print("[libraster - generator.py] C and H generation")
         generate_c_files(fonts, sdf_datas, glyph_metadatas)
 
-        print("Process completed!")
+        print("[libraster - generator.py] ok")
 
 
 if __name__ == "__main__":
