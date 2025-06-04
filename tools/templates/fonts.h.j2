@@ -1,0 +1,38 @@
+// {{ datetime_info }}
+
+#ifndef FONTS_H
+#define FONTS_H
+
+#include <stdint.h>
+
+typedef struct _Glyph {
+    uint32_t offset;
+    uint16_t size;
+    uint16_t width;
+    uint16_t height;
+} Glyph;
+
+{% for font in fonts %}
+extern const uint8_t sdf_data_{{ font.name }}_{{ font.size }}[];
+extern const Glyph glyphs_{{ font.name }}_{{ font.size }}[];
+{% endfor %}
+
+typedef struct _Font {
+    uint8_t size;
+    const uint8_t* sdf_data;
+    const Glyph* glyphs;
+} Font;
+
+typedef enum _FontName {
+{%- for font in fonts %}
+    {{ font.name|upper }}_{{ font.size }}{{ "," if not loop.last else "" }}
+{%- endfor %}
+} FontName;
+
+static const Font fonts[] = {
+{%- for font in fonts %}
+    { {{ font.size }}, sdf_data_{{ font.name }}_{{ font.size }}, glyphs_{{ font.name }}_{{ font.size }} },
+{%- endfor %}
+};
+
+#endif // FONTS_H

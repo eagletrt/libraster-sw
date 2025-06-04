@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/platformio/platformio-core/develop/platformio/assets/schema/library.json",
   "name": "LibRaster",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A simple library that provides a way to define and raster a graphic layout",
   "keywords": [
     "graphics", "rasterizer", "embedded"
@@ -13,7 +13,7 @@
   "authors": [
     {
       "name": "Alessandro Bridi",
-      "email": "alessandro.bridi15@gmail.com",
+      "email": "ale.bridi15@gmail.com",
       "maintainer": true
     }
   ],
@@ -28,9 +28,9 @@
   ],
   "examples": [
       {
-          "name": "Full SDL Demo",
+          "name": "Full Demo",
           "base": "examples",
-          "files": [ "demosdl.c" ]
+          "files": [ "demo.c" ]
       }
   ],
   "export": {
