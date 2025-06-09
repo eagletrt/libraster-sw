@@ -7,6 +7,7 @@ import datetime
 import argparse
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
+import logging
 
 
 parser = argparse.ArgumentParser()
@@ -22,29 +23,23 @@ json_base = args.json.parent
 def compress_rle_4bit_paired(data):
     compressed = []
     i = 0
-
     while i < len(data):
         sdf1 = data[i] // 16
         count1 = 1
         i += 1
-
         while i < len(data) and data[i] // 16 == sdf1 and count1 < 255:
             count1 += 1
             i += 1
-
         if i < len(data):
             sdf2 = data[i] // 16
             count2 = 1
             i += 1
-
             while i < len(data) and data[i] // 16 == sdf2 and count2 < 255:
                 count2 += 1
                 i += 1
         else:
             count2 = 0
-
         compressed.append(((sdf1 << 4) | sdf2, count1, count2))
-
     return compressed
 
 
@@ -129,10 +124,13 @@ def generate_c_files(fonts):
 
 
 def main():
+    logger = logging.getLogger("font-generator")
+    logging.basicConfig(encoding='utf-8', level=logging.INFO)
+
     with open(os.path.join(json_base, "fonts.json")) as json_data:
         fonts = json.load(json_data)
 
-        print("[libraster - generator.py] bitmap generation")
+        logger.info("bitmap generation")
         sdfs, glyphs = generate_bitmaps(fonts)
         for i, font in enumerate(fonts):
             font["sdfs"] = sdfs[i]
@@ -146,10 +144,10 @@ def main():
                 for g in glyphs[i]
             ]
 
-        print("[libraster - generator.py] C and H generation")
+        logger.info("C and H generation")
         generate_c_files(fonts)
 
-        print("[libraster - generator.py] ok")
+        logger.info("ok")
 
 
 if __name__ == "__main__":

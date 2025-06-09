@@ -20,6 +20,7 @@ The idea is to let the user decide how things are done. This helps with performa
     import sys
     from pathlib import Path
     from SCons.Script import Import
+    import logging
 
     Import("env")
 
@@ -31,16 +32,18 @@ The idea is to let the user decide how things are done. This helps with performa
     def hash_file(p):
         return hashlib.sha256(p.read_bytes()).hexdigest()
 
+    logger = logging.getLogger("libraster")
+    logging.basicConfig(encoding='utf-8', level=logging.INFO)
 
     if not json_path.exists():
-        print("[libraster-sw] fonts.json not found")
+        logger.warning("[libraster-sw] fonts.json not found")
         exit(1)
     elif not hash_path.exists() or hash_file(json_path) != hash_path.read_text():
-        print("[libraster] generating")
+        logger.info("[libraster] generating")
         os.system(f"{sys.executable} {libgen} --json {json_path}")
         hash_path.write_text(hash_file(json_path))
     else:
-        print("[libraster] fonts.json unchanged, skipping")
+        logger.warning("[libraster] fonts.json unchanged, skipping")
 
     ```
     This will let you create a folder named `tools` containing the `fonts.json`.
