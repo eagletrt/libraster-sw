@@ -10,7 +10,7 @@ const uint8_t sdf_data_{{ font.name }}_{{ font.size }}[] = {
 
 const Glyph glyphs_{{ font.name }}_{{ font.size }}[] = {
 {%- for g in font.glyphs %}
-    { {{ g.offset }}, {{ g.size }}, {{ g.width }}, {{ g.height }} },
+    { {{ g.offset }}, {{ g.size }}, {{ g.width }}, {{ g.height }} },  // '{{ g.char }}'
 {%- endfor %}
 };
 {% endfor %}

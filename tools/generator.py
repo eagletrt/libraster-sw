@@ -56,6 +56,34 @@ def generate_bitmaps(fonts):
         normalized_sdf = smoothstep(edge0, edge1, normalized_sdf) * 255
         return normalized_sdf.astype(np.uint8)
 
+    def parse_char_set(pattern: str) -> list[str]:
+        chars = []
+        last = None
+
+        i = 0
+        while i < len(pattern):
+            c = pattern[i]
+
+            if c == '-' and last is not None and i + 1 < len(pattern):
+                start = ord(last)
+                end = ord(pattern[i + 1])
+
+                if start < end:
+                    chars.extend(chr(code) for code in
+                                 range(start + 1, end + 1))
+
+                last = pattern[i + 1]
+                chars.append(last)
+                i += 2
+                continue
+            else:
+                chars.append(c)
+                last = c
+
+            i += 1
+
+        return sorted(set(chars))
+
     sdf_datas = []
     glyph_metadatas = []
 
@@ -69,10 +97,10 @@ def generate_bitmaps(fonts):
         font_sdf_data = []
         font_glyph_metadata = []
 
-        for char_code in range(32, 127):
-            char = chr(char_code)
+        characters = parse_char_set(font_json["characters"])
 
-            bbox = font.getbbox(char, anchor="ls")  # "ls" = left baseline
+        for char in characters:
+            bbox = font.getbbox(char, anchor="ls")
             char_width = bbox[2] - bbox[0]
 
             image = Image.new("L", (char_width, total_height), 0)
@@ -97,7 +125,7 @@ def generate_bitmaps(fonts):
             font_sdf_data.extend([item for pair in compressed
                                   for item in pair])
             font_glyph_metadata.append(
-                (offset, len(compressed) * 2, width, height))
+                (offset, len(compressed) * 2, width, height, char))
 
         sdf_datas.append(font_sdf_data)
         glyph_metadatas.append(font_glyph_metadata)
@@ -139,7 +167,8 @@ def main():
                     "offset": g[0],
                     "size": g[1],
                     "width": g[2],
-                    "height": g[3]
+                    "height": g[3],
+                    "char": g[4]
                 }
                 for g in glyphs[i]
             ]
