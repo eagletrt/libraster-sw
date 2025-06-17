@@ -14,8 +14,8 @@ typedef struct _Glyph {
 } Glyph;
 
 {% for font in fonts %}
-extern const uint8_t sdf_data_{{ font.name }}_{{ font.size }}[];
-extern const Glyph glyphs_{{ font.name }}_{{ font.size }}[];
+extern const uint8_t sdf_data_{{ font.name }}[];
+extern const Glyph glyphs_{{ font.name }}[];
 {% endfor %}
 
 typedef struct _Font {
@@ -27,13 +27,13 @@ typedef struct _Font {
 
 typedef enum _FontName {
 {%- for font in fonts %}
-    {{ font.name|upper }}_{{ font.size }}{{ "," if not loop.last else "" }}
+    FONT_{{ font.name|upper }}{{ "," if not loop.last else "" }}
 {%- endfor %}
 } FontName;
 
 static const Font fonts[] = {
 {%- for font in fonts %}
-    { {{ font.size }}, sdf_data_{{ font.name }}_{{ font.size }}, glyphs_{{ font.name }}_{{ font.size }}, {{ font.glyphs|length }} },
+    { {{ font.size }}, sdf_data_{{ font.name }}, glyphs_{{ font.name }}, {{ font.glyphs|length }} },
 {%- endfor %}
 };
 

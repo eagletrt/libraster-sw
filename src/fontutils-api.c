@@ -9,7 +9,7 @@
 #include "fontutils-api.h"
 
 #if RASTER_BATCH_GLYPHS
-void _draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, float multiplier, int16_t glyph_width, int16_t glyph_height, int16_t *current_x, int16_t *current_y, uint8_t *alphas) {
+void _draw_rle_series(uint8_t count, uint8_t value, float multiplier, int16_t glyph_width, int16_t glyph_height, int16_t *current_x, int16_t *current_y, uint8_t *alphas) {
     if (value < 30) {
         *current_x += count;
         *current_y += *current_x / glyph_width;
@@ -19,10 +19,10 @@ void _draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, floa
         return;
     }
 
-    int16_t start_x = x + (*current_x * multiplier);
-    int16_t start_y = y + (*current_y * multiplier);
-    int16_t end_x = x + ((*current_x + count) * multiplier);
-    int16_t end_y = y + ((*current_y + 1) * multiplier);
+    int16_t start_x = (*current_x * multiplier);
+    int16_t start_y = (*current_y * multiplier);
+    int16_t end_x = ((*current_x + count) * multiplier);
+    int16_t end_y = ((*current_y + 1) * multiplier);
     int16_t draw_width = (int16_t)(end_x - start_x + 0.5f);
     int16_t draw_height = (int16_t)(end_y - start_y + 0.5f);
 
@@ -63,8 +63,8 @@ void _render_glyph(const Glyph *glyph, FontName font, uint16_t x, uint16_t y, fl
         uint8_t count2 = *data++;
         remaining_size -= 3;
 
-        _draw_rle_series(count1, value1, x, y, multiplier, glyph_width, glyph_height, &current_x, &current_y, alphas);
-        _draw_rle_series(count2, value2, x, y, multiplier, glyph_width, glyph_height, &current_x, &current_y, alphas);
+        _draw_rle_series(count1, value1, multiplier, glyph_width, glyph_height, &current_x, &current_y, alphas);
+        _draw_rle_series(count2, value2, multiplier, glyph_width, glyph_height, &current_x, &current_y, alphas);
     }
 
     draw_batch_at_position(x, y, glyph_width, glyph_height, color, alphas);
