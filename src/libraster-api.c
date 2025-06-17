@@ -39,7 +39,7 @@ uint32_t _interpolate_color(uint32_t color1, uint32_t color2, float min, float m
     return (a << 24) | (r << 16) | (g << 8) | b;
 }
 
-void _extract_threshold(Box* box, uint32_t* bg_color, uint32_t* fg_color) {
+void _extract_threshold(Box *box, uint32_t *bg_color, uint32_t *fg_color) {
     for (int i = 0; i < box->value->colors.thresholds->thresholds_num; i++) {
         if (box->value->colors.thresholds->threshold[i].min <= box->value->value && box->value->value <= box->value->colors.thresholds->threshold[i].max) {
             *bg_color = box->value->colors.thresholds->threshold[i].bg_color;
@@ -48,7 +48,7 @@ void _extract_threshold(Box* box, uint32_t* bg_color, uint32_t* fg_color) {
     }
 }
 
-void _calculate_slider_position(Box* box, uint32_t* x, uint32_t* y, uint32_t* width, uint32_t* height) {
+void _calculate_slider_position(Box *box, uint32_t *x, uint32_t *y, uint32_t *width, uint32_t *height) {
     float percent = 1.f - ((box->value->value - box->value->colors.slider.min) /
                            (box->value->colors.slider.max - box->value->colors.slider.min));
     if (box->value->colors.slider.anchor == ANCHOR_TOP || box->value->colors.slider.anchor == ANCHOR_BOTTOM) {
@@ -64,8 +64,8 @@ void _calculate_slider_position(Box* box, uint32_t* x, uint32_t* y, uint32_t* wi
     }
 }
 
-void _draw_text_box(Box* box, draw_line_callback_t draw_line, draw_rectangle_callback_t draw_rectangle) {
-#if GRAPHICS_OPT
+void _draw_text_box(Box *box, draw_rectangle_callback_t draw_rectangle, draw_line_callback_t line_callback) {
+#if PARTIAL_RASTER
     if (!box->updated)
         return;
 #endif
@@ -106,7 +106,7 @@ void _draw_text_box(Box* box, draw_line_callback_t draw_line, draw_rectangle_cal
                   buf,
                   fg_color,
                   box->value->font_size,
-                  draw_line);
+                  line_callback);
     }
 
     if (box->label) {
@@ -118,26 +118,26 @@ void _draw_text_box(Box* box, draw_line_callback_t draw_line, draw_rectangle_cal
                   box->label->text,
                   fg_color,
                   box->label->font_size,
-                  draw_line);
+                  line_callback);
     }
 }
 
-void render_interface(Box* text_boxes, uint16_t num, draw_line_callback_t draw_line, draw_rectangle_callback_t draw_rectangle
-#if GRAPHICS_OPT == 0
+void render_interface(Box *text_boxes, uint16_t num, draw_line_callback_t draw_line, draw_rectangle_callback_t draw_rectangle
+#if PARTIAL_RASTER == 0
                       ,
                       clear_screen_callback_t clear_screen
 #endif
 ) {
 // Do not clear full screen for max optimization (less time spent)
-#if GRAPHICS_OPT == 0
+#if PARTIAL_RASTER == 0
     clear_screen();
 #endif
     for (int i = 0; i < num; i++) {
-        _draw_text_box(text_boxes + i, draw_line, draw_rectangle);
+        _draw_text_box(text_boxes + i, draw_rectangle, draw_line);
     }
 }
 
-Box* get_box(Box* boxes, uint16_t num, uint16_t id) {
+Box *get_box(Box *boxes, uint16_t num, uint16_t id) {
     // Loops and search for IDs (can be good for CAN IDs)
     for (int i = 0; i < num; i++) {
         if ((boxes + i)->id == id) {
@@ -147,7 +147,7 @@ Box* get_box(Box* boxes, uint16_t num, uint16_t id) {
     return NULL;
 }
 
-void create_label(Label* label, char* text, Coords pos, FontName font, uint16_t font_size, FontAlign align) {
+void create_label(Label *label, char *text, Coords pos, FontName font, uint16_t font_size, FontAlign align) {
     if (label) {
         label->text = text;
         label->pos = pos;
@@ -157,7 +157,7 @@ void create_label(Label* label, char* text, Coords pos, FontName font, uint16_t 
     }
 }
 
-void create_value(Value* value, float val, bool is_float, Coords pos, FontName font, uint16_t font_size, FontAlign align, Colors colors, ColorType color_type) {
+void create_value(Value *value, float val, bool is_float, Coords pos, FontName font, uint16_t font_size, FontAlign align, Colors colors, ColorType color_type) {
     if (value) {
         value->value = val;
         value->is_float = is_float;

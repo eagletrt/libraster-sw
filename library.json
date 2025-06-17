@@ -28,9 +28,14 @@
   ],
   "examples": [
       {
-          "name": "Full Demo",
+          "name": "Demo using batch rendering of glyphs",
           "base": "examples",
-          "files": [ "demo.c" ]
+          "files": [ "batch-font-rendering.c" ]
+      },
+      {
+          "name": "Demo using direct rendering of glyphs",
+          "base": "examples",
+          "files": [ "direct-font-rendering.c" ]
       }
   ],
   "export": {

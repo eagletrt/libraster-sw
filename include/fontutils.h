@@ -11,6 +11,15 @@
 
 #include <stdint.h>
 #include "fonts.h"
+#ifdef __has_include
+#if __has_include("raster_config.h")
+#include "raster_config.h"
+#endif
+#endif
+
+#ifndef PARTIAL_RASTER
+#define PARTIAL_RASTER 1
+#endif
 
 /**
  * @brief Callback to draw a pixel row

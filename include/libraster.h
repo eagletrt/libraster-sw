@@ -9,8 +9,6 @@
 #ifndef RASTER_H
 #define RASTER_H
 
-#define GRAPHICS_OPT 1
-
 #include <stdbool.h>
 #include <stdint.h>
 #include "fontutils.h"
@@ -207,7 +205,7 @@ typedef struct _Value {
  *     - value Is a pointer to Value component
  */
 typedef struct _Box {
-#if GRAPHICS_OPT
+#if PARTIAL_RASTER
     bool updated;
 #endif
     uint16_t id;

@@ -73,18 +73,18 @@ Thresholds thresholds[] = {
 };
 
 Label l1;
-create_label(&l1, "XD", (Coords){310, 95}, KONEXY_120, 40, FONT_ALIGN_CENTER);
+create_label(&l1, "XD", (Coords){310, 95}, FONT_KONEXY, 40, FONT_ALIGN_CENTER);
 Value v1;
-create_value(&v1, 51, false, (Coords){140, 80}, KONEXY_120, 70, FONT_ALIGN_CENTER, (Colors){ .thresholds = thresholds}, THRESHOLDS);
+create_value(&v1, 51, false, (Coords){140, 80}, FONT_KONEXY, 70, FONT_ALIGN_CENTER, (Colors){ .thresholds = thresholds}, THRESHOLDS);
 
 Value v2;
-create_value(&v2, 51, true, (Coords){ 196, 80 }, KONEXY_120, 70, FONT_ALIGN_CENTER, (Colors){ .slider = (Slider){0xff00ff00, ANCHOR_BOTTOM, 0, 200, 3}}, SLIDER);
+create_value(&v2, 51, true, (Coords){ 196, 80 }, FONT_KONEXY, 70, FONT_ALIGN_CENTER, (Colors){ .slider = (Slider){0xff00ff00, ANCHOR_BOTTOM, 0, 200, 3}}, SLIDER);
 
 Label l2;
-create_label(&l2, "PROVA", (Coords){196, 80}, KONEXY_120, 70, FONT_ALIGN_CENTER);
+create_label(&l2, "PROVA", (Coords){196, 80}, FONT_KONEXY, 70, FONT_ALIGN_CENTER);
 
 Value v3;
-create_value(&v3, 51.0, true, (Coords){ 196, 80 }, KONEXY_120, 70, FONT_ALIGN_CENTER, (Colors){ .interpolation = (LinearInterpolation){0xff000000, 0xff00ff00, 0.0, 200.0}}, INTERPOLATION);
+create_value(&v3, 51.0, true, (Coords){ 196, 80 }, FONT_KONEXY, 70, FONT_ALIGN_CENTER, (Colors){ .interpolation = (LinearInterpolation){0xff000000, 0xff00ff00, 0.0, 200.0}}, INTERPOLATION);
 
 Box boxes[] = {
     { 1, 0x1, { 2, 2, 397, 237 }, 0xff000000, 0xffffffff, &l1, &v1 },
@@ -100,5 +100,6 @@ render_interface(boxes, 4, draw_line_callback, draw_rectangle_callback);
 ```
 
 > [!TIP]
-> There is an option called `GRAPHIC_OPT` inside `libraster.h` that changes how the library behaves (and some parameters in functions an structs).
-> This is useful on low power devices to greatly increase performances, but it may create visual artifacts in complex interfaces with overlapping boxes, so use with caution.
+> Create a file `raster_config.h` with the following defines to customize behaviour:
+> - `PARTIAL_RASTER` that changes how the library behaves (default = 1).
+

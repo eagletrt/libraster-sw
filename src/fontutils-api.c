@@ -44,7 +44,7 @@ void _draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, floa
         return;
 }
 
-void _render_glyph(const Glyph *glyph, FontName font, uint16_t x, uint16_t y, uint32_t color, float multiplier, draw_line_callback_t line_callback) {
+void _render_glyph(const Glyph *glyph, FontName font, uint16_t x, uint16_t y, float multiplier, uint32_t color, draw_line_callback_t line_callback) {
     const uint8_t *data = &fonts[font].sdf_data[glyph->offset];
     uint16_t remaining_size = glyph->size;
 
@@ -81,9 +81,9 @@ void draw_text(uint16_t x, uint16_t y, FontAlign align, FontName font, const cha
 
     while (*text) {
         int char_code = *text++;
-        if (char_code >= 32 && char_code <= 126) {
-            const Glyph *glyph = &fonts[font].glyphs[char_code - 32];
-            _render_glyph(glyph, font, x, y, color, multiplier, line_callback);
+        const Glyph *glyph = find_glyph(font, char_code);
+        if (glyph != 0) {
+            _render_glyph(glyph, font, x, y, multiplier, color, line_callback);
             x += glyph->width * multiplier;
         }
     }
@@ -96,8 +96,9 @@ uint16_t text_length(const char *text, uint16_t pixel_size, FontName font) {
 
     while (*text) {
         int char_code = *text++;
-        if (char_code >= 32 && char_code <= 126) {
-            tot += fonts[font].glyphs[char_code - 32].width * multiplier;
+        const Glyph *glyph = find_glyph(font, char_code);
+        if (glyph != 0) {
+            tot += glyph->width * multiplier;
         }
     }
     return (uint16_t)tot;

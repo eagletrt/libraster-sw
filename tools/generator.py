@@ -127,7 +127,7 @@ def generate_bitmaps(fonts):
             if char == '\'':
                 char = '\\' + char
             font_glyph_metadata.append(
-                (offset, len(compressed) * 2, width, height, char))
+                (offset, len(compressed) * 3, width, height, char))
 
         sdf_datas.append(font_sdf_data)
         glyph_metadatas.append(font_glyph_metadata)

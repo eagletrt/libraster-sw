@@ -21,7 +21,7 @@
  * @param clear_screen Clear screen callback
  */
 void render_interface(Box *boxes, uint16_t num, draw_line_callback_t draw_line, draw_rectangle_callback_t draw_rectangle
-#if GRAPHICS_OPT == 0
+#if PARTIAL_RASTER == 0
                       ,
                       clear_screen_callback_t clear_screen
 #endif

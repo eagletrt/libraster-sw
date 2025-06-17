@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 typedef struct _Glyph {
+    char character;
     uint32_t offset;
     uint16_t size;
     uint16_t width;
@@ -13,26 +14,36 @@ typedef struct _Glyph {
 } Glyph;
 
 {% for font in fonts %}
-extern const uint8_t sdf_data_{{ font.name }}_{{ font.size }}[];
-extern const Glyph glyphs_{{ font.name }}_{{ font.size }}[];
+extern const uint8_t sdf_data_{{ font.name }}[];
+extern const Glyph glyphs_{{ font.name }}[];
 {% endfor %}
 
 typedef struct _Font {
     uint8_t size;
     const uint8_t* sdf_data;
     const Glyph* glyphs;
+    uint16_t glyph_count;
 } Font;
 
 typedef enum _FontName {
 {%- for font in fonts %}
-    {{ font.name|upper }}_{{ font.size }}{{ "," if not loop.last else "" }}
+    FONT_{{ font.name|upper }}{{ "," if not loop.last else "" }}
 {%- endfor %}
 } FontName;
 
 static const Font fonts[] = {
 {%- for font in fonts %}
-    { {{ font.size }}, sdf_data_{{ font.name }}_{{ font.size }}, glyphs_{{ font.name }}_{{ font.size }} },
+    { {{ font.size }}, sdf_data_{{ font.name }}, glyphs_{{ font.name }}, {{ font.glyphs|length }} },
 {%- endfor %}
 };
+
+/**
+ * Binary seach to find the glyph we want
+ * 
+ * @param font Is the one in the enumerator.
+ * @param c Is the character we're searching for.
+ * @return Pointer to the Glyph is found, NULL if not found.
+ */
+const Glyph* find_glyph(FontName font, char c);
 
 #endif // FONTS_H
