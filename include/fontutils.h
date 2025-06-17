@@ -9,9 +9,14 @@
 #ifndef FONTUTILS_H
 #define FONTUTILS_H
 
+#define RASTER_BATCH_GLYPHS 1
+
 #include <stdint.h>
 #include "fonts.h"
 
+#if RASTER_BATCH_GLYPHS
+typedef void (*draw_batch_at_position_t)(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint32_t color, uint8_t *alphas);
+#else
 /**
  * @brief Callback to draw a pixel row
  * 
@@ -21,6 +26,7 @@
  * @param color Color in ARGB8888 format
  */
 typedef void (*draw_line_callback_t)(uint16_t x, uint16_t y, uint16_t lenght, uint32_t color);
+#endif
 
 /**
  * @brief Represents the alignment of the rendering of the text

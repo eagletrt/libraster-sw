@@ -20,10 +20,16 @@
  * @param draw_rectangle Draw rectangle callback
  * @param clear_screen Clear screen callback
  */
-void render_interface(Box *boxes, uint16_t num, draw_line_callback_t draw_line, draw_rectangle_callback_t draw_rectangle
-#if GRAPHICS_OPT == 0
-                      ,
-                      clear_screen_callback_t clear_screen
+void render_interface(Box *boxes, uint16_t num,
+#if RASTER_BATCH_GLYPHS
+                      draw_batch_at_position_t draw_batch_at_position,
+                      uint8_t *alphas,
+#else
+                      draw_line_callback_t draw_line,
+#endif
+                      draw_rectangle_callback_t draw_rectangle
+#if PARTIAL_RASTER == 0
+                      ,clear_screen_callback_t clear_screen
 #endif
 );
 

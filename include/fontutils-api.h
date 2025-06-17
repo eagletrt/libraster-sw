@@ -22,8 +22,16 @@
  * @param color ARGB color value (alpha is ignored)
  * @param pixel_size Size of the font to render
  * @param line_callback Callback used to draw a line
+ * @param alphas An array of uint8 where alphas of each glyphs are stored
  */
-void draw_text(uint16_t x, uint16_t y, FontAlign align, FontName font, const char *text, uint32_t color, uint16_t pixel_size, draw_line_callback_t line_callback);
+void draw_text(uint16_t x, uint16_t y, FontAlign align, FontName font, const char *text, uint32_t color, uint16_t pixel_size,
+#if RASTER_BATCH_GLYPHS
+               uint8_t *alphas,
+               draw_batch_at_position_t draw_batch_at_position
+#else
+               draw_line_callback_t line_callback
+#endif
+               );
 
 /**
  * @brief Calcaulate the lenght on the text in pixel

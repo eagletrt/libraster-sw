@@ -8,7 +8,14 @@
 
 #include "fontutils-api.h"
 
-void _draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, float multiplier, int16_t glyph_width, int16_t glyph_height, int16_t *current_x, int16_t *current_y, uint32_t color, draw_line_callback_t line_callback) {
+void _draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, float multiplier, int16_t glyph_width, int16_t glyph_height, int16_t *current_x, int16_t *current_y,
+#if RASTER_BATCH_GLYPHS
+                      uint8_t *alphas
+#else
+                      uint32_t color,
+                      draw_line_callback_t line_callback
+#endif
+) {
     if (value < 30) {
         *current_x += count;
         *current_y += *current_x / glyph_width;
@@ -18,7 +25,9 @@ void _draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, floa
         return;
     }
 
+#if RASTER_BATCH_GLYPHS == 0
     uint32_t blended_color = (color & 0x00ffffff) | ((uint32_t)value << 24);
+#endif
 
     int16_t start_x = x + (*current_x * multiplier);
     int16_t start_y = y + (*current_y * multiplier);
@@ -34,7 +43,13 @@ void _draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, floa
 
     // Fill any potential gaps when scaling by ensuring consecutive rows are drawn
     for (int j = 0; j < draw_height; ++j) {
+#if RASTER_BATCH_GLYPHS
+        for (int i = 0; i < draw_width; i++) {
+            alphas[start_x + (glyph_width * (start_y + j))] = value;
+        }
+#else
         line_callback(start_x, start_y + j, draw_width, blended_color);
+#endif
     }
 
     *current_x += count;
@@ -44,7 +59,14 @@ void _draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, floa
         return;
 }
 
-void _render_glyph(const Glyph *glyph, FontName font, uint16_t x, uint16_t y, uint32_t color, float multiplier, draw_line_callback_t line_callback) {
+void _render_glyph(const Glyph *glyph, FontName font, uint16_t x, uint16_t y, float multiplier, uint32_t color,
+#if RASTER_BATCH_GLYPHS
+                   uint8_t *alphas,
+                   draw_batch_at_position_t draw_batch_at_position
+#else
+                   draw_line_callback_t line_callback
+#endif
+) {
     const uint8_t *data = &fonts[font].sdf_data[glyph->offset];
     uint16_t remaining_size = glyph->size;
 
@@ -62,12 +84,37 @@ void _render_glyph(const Glyph *glyph, FontName font, uint16_t x, uint16_t y, ui
         uint8_t count2 = *data++;
         remaining_size -= 2;
 
-        _draw_rle_series(count1, value1, x, y, multiplier, glyph_width, glyph_height, &current_x, &current_y, color, line_callback);
-        _draw_rle_series(count2, value2, x, y, multiplier, glyph_width, glyph_height, &current_x, &current_y, color, line_callback);
+        _draw_rle_series(count1, value1, x, y, multiplier, glyph_width, glyph_height, &current_x, &current_y,
+#if RASTER_BATCH_GLYPHS
+                         alphas
+#else
+                         color,
+                         line_callback
+#endif
+        );
+        _draw_rle_series(count2, value2, x, y, multiplier, glyph_width, glyph_height, &current_x, &current_y,
+#if RASTER_BATCH_GLYPHS
+                         alphas
+#else
+                         color,
+                         line_callback
+#endif
+        );
     }
+
+#if RASTER_BATCH_GLYPHS
+    draw_batch_at_position(x, y, glyph_width, glyph_height, color, alphas);
+#endif
 }
 
-void draw_text(uint16_t x, uint16_t y, FontAlign align, FontName font, const char *text, uint32_t color, uint16_t pixel_size, draw_line_callback_t line_callback) {
+void draw_text(uint16_t x, uint16_t y, FontAlign align, FontName font, const char *text, uint32_t color, uint16_t pixel_size,
+#if RASTER_BATCH_GLYPHS
+               uint8_t *alphas,
+               draw_batch_at_position_t draw_batch_at_position
+#else
+               draw_line_callback_t line_callback
+#endif
+) {
     if (align != FONT_ALIGN_LEFT) {
         uint16_t len = text_length(text, pixel_size, font);
         if (align == FONT_ALIGN_CENTER)
@@ -81,9 +128,16 @@ void draw_text(uint16_t x, uint16_t y, FontAlign align, FontName font, const cha
 
     while (*text) {
         int char_code = *text++;
-        if (char_code >= 32 && char_code <= 126) {
-            const Glyph *glyph = &fonts[font].glyphs[char_code - 32];
-            _render_glyph(glyph, font, x, y, color, multiplier, line_callback);
+        const Glyph *glyph = find_glyph(font, char_code);
+        if (glyph != 0) {
+            _render_glyph(glyph, font, x, y, multiplier, color,
+#if RASTER_BATCH_GLYPHS
+                          alphas,
+                          draw_batch_at_position
+#else
+                          line_callback
+#endif
+            );
             x += glyph->width * multiplier;
         }
     }
@@ -96,8 +150,9 @@ uint16_t text_length(const char *text, uint16_t pixel_size, FontName font) {
 
     while (*text) {
         int char_code = *text++;
-        if (char_code >= 32 && char_code <= 126) {
-            tot += fonts[font].glyphs[char_code - 32].width * multiplier;
+        const Glyph *glyph = find_glyph(font, char_code);
+        if (glyph != 0) {
+            tot += glyph->width * multiplier;
         }
     }
     return (uint16_t)tot;
