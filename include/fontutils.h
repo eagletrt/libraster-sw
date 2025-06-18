@@ -9,10 +9,21 @@
 #ifndef FONTUTILS_H
 #define FONTUTILS_H
 
-#define RASTER_BATCH_GLYPHS 1
-
 #include <stdint.h>
 #include "fonts.h"
+#ifdef __has_include
+    #if __has_include("raster_config.h")
+        #include "raster_config.h"
+    #endif
+#endif
+
+#ifndef PARTIAL_RASTER
+    #define PARTIAL_RASTER 1
+#endif
+
+#ifndef RASTER_BATCH_GLYPHS
+    #define RASTER_BATCH_GLYPHS 0
+#endif
 
 #if RASTER_BATCH_GLYPHS
 typedef void (*draw_batch_at_position_t)(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint32_t color, uint8_t *alphas);
