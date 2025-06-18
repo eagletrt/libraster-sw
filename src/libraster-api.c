@@ -117,7 +117,7 @@ void _draw_text_box(Box *box, draw_rectangle_callback_t draw_rectangle,
                   alphas,
                   draw_batch_at_position
 #else
-                  draw_line
+                  line_callback
 #endif
         );
     }
@@ -135,7 +135,7 @@ void _draw_text_box(Box *box, draw_rectangle_callback_t draw_rectangle,
                   alphas,
                   draw_batch_at_position
 #else
-                  draw_line
+                  line_callback
 #endif
         );
     }

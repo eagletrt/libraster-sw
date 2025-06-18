@@ -10,15 +10,6 @@
 
 #if RASTER_BATCH_GLYPHS
 void _draw_rle_series(uint8_t count, uint8_t value, float multiplier, int16_t glyph_width, int16_t glyph_height, int16_t *current_x, int16_t *current_y, uint8_t *alphas) {
-    if (value < 30) {
-        *current_x += count;
-        *current_y += *current_x / glyph_width;
-        *current_x %= glyph_width;
-        if (*current_y >= glyph_height)
-            return;
-        return;
-    }
-
     int16_t start_x = (*current_x * multiplier);
     int16_t start_y = (*current_y * multiplier);
     int16_t end_x = ((*current_x + count) * multiplier);
@@ -34,7 +25,7 @@ void _draw_rle_series(uint8_t count, uint8_t value, float multiplier, int16_t gl
     // Fill any potential gaps when scaling by ensuring consecutive rows are drawn
     for (int j = 0; j < draw_height; ++j) {
         for (int i = 0; i < draw_width; i++) {
-            alphas[start_x + i + (glyph_width * (start_y + j))] = value;
+            alphas[start_x + i + ((int)(glyph_width * multiplier) * (start_y + j))] = value;
         }
     }
 
@@ -67,7 +58,7 @@ void _render_glyph(const Glyph *glyph, FontName font, uint16_t x, uint16_t y, fl
         _draw_rle_series(count2, value2, multiplier, glyph_width, glyph_height, &current_x, &current_y, alphas);
     }
 
-    draw_batch_at_position(x, y, glyph_width, glyph_height, color, alphas);
+    draw_batch_at_position(x, y, glyph_width * multiplier, glyph_height * multiplier, color, alphas);
 }
 
 void draw_text(uint16_t x, uint16_t y, FontAlign align, FontName font, const char *text, uint32_t color, uint16_t pixel_size, uint8_t *alphas, draw_batch_at_position_t draw_batch_at_position) {
