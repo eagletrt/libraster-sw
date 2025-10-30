@@ -62,31 +62,31 @@ All you have to do is include `libraster-api.h` in your program, declare the int
 > If you're using 2 buffers, you still have to swap them yourself. This library still does not implement a way to do it.
 
 ```c
-Threshold ranges[] = {
+struct Threshold ranges[] = {
     {0.0f, 50.0f, 0x00FF00, 0x000000},
     {50.1f, 100.0f, 0xFFFF00, 0x000000},
     {100.1f, 200.0f, 0xFF0000, 0xFFFFFF}
 };
 
-Thresholds thresholds[] = {
+struct Thresholds thresholds[] = {
     {ranges, 3}
 };
 
-Label l1;
-create_label(&l1, "XD", (Coords){310, 95}, FONT_KONEXY, 40, FONT_ALIGN_CENTER);
-Value v1;
-create_value(&v1, 51, false, (Coords){140, 80}, FONT_KONEXY, 70, FONT_ALIGN_CENTER, (Colors){ .thresholds = thresholds}, THRESHOLDS);
+struct Label l1;
+create_label(&l1, "XD", (struct Coords){310, 95}, FONT_KONEXY, 40, FONT_ALIGN_CENTER);
+struct Value v1;
+create_value(&v1, 51, false, (struct Coords){140, 80}, FONT_KONEXY, 70, FONT_ALIGN_CENTER, (union Colors){ .thresholds = thresholds}, THRESHOLDS);
 
-Value v2;
-create_value(&v2, 51, true, (Coords){ 196, 80 }, FONT_KONEXY, 70, FONT_ALIGN_CENTER, (Colors){ .slider = (Slider){0xff00ff00, ANCHOR_BOTTOM, 0, 200, 3}}, SLIDER);
+struct Value v2;
+create_value(&v2, 51, true, (struct Coords){ 196, 80 }, FONT_KONEXY, 70, FONT_ALIGN_CENTER, (union Colors){ .slider = (struct Slider){0xff00ff00, ANCHOR_BOTTOM, 0, 200, 3}}, SLIDER);
 
-Label l2;
-create_label(&l2, "PROVA", (Coords){196, 80}, FONT_KONEXY, 70, FONT_ALIGN_CENTER);
+struct Label l2;
+create_label(&l2, "PROVA", (struct Coords){196, 80}, FONT_KONEXY, 70, FONT_ALIGN_CENTER);
 
-Value v3;
-create_value(&v3, 51.0, true, (Coords){ 196, 80 }, FONT_KONEXY, 70, FONT_ALIGN_CENTER, (Colors){ .interpolation = (LinearInterpolation){0xff000000, 0xff00ff00, 0.0, 200.0}}, INTERPOLATION);
+struct Value v3;
+create_value(&v3, 51.0, true, (struct Coords){ 196, 80 }, FONT_KONEXY, 70, FONT_ALIGN_CENTER, (union Colors){ .interpolation = (struct LinearInterpolation){0xff000000, 0xff00ff00, 0.0, 200.0}}, INTERPOLATION);
 
-Box boxes[] = {
+struct Box boxes[] = {
     { 1, 0x1, { 2, 2, 397, 237 }, 0xff000000, 0xffffffff, &l1, &v1 },
     { 1, 0x2, { 401, 2, 397, 237 }, 0xff000000, 0xffffffff, NULL, &v2 },
     { 1, 0x3, { 2, 241, 397, 237 }, 0xff000000, 0xffffffff, &l2, NULL },

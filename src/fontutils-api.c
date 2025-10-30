@@ -1,9 +1,15 @@
-/**
- * @file fontutils-api.c
- * @date 2024-12-30
- * @author Alessandro Bridi [ale.bridi15@gmail.com]
+/*!
+ * \file fontutils-api.c
+ * \date 2024-12-30
+ * \authors Alessandro Bridi [ale.bridi15@gmail.com]
  *
- * @brief Text rendering functions
+ * \brief FontUtils APIs functions implementations
+ *
+ * \details A rasterizer is a software renderer that works by writing pixels to
+ *      a framebuffer.
+ *      This implementation lets the user define 3 callbacks that defines the
+ *      technique used to write them, so that hardware accelerators can be used
+ *      to archive big speedups.
  */
 
 #include "fontutils-api.h"
@@ -44,7 +50,7 @@ void _draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, floa
         return;
 }
 
-void _render_glyph(const Glyph *glyph, FontName font, uint16_t x, uint16_t y, float multiplier, uint32_t color, draw_line_callback_t line_callback) {
+void _render_glyph(const struct Glyph *glyph, enum FontName font, uint16_t x, uint16_t y, float multiplier, uint32_t color, draw_line_callback_t line_callback) {
     const uint8_t *data = &fonts[font].sdf_data[glyph->offset];
     uint16_t remaining_size = glyph->size;
 
@@ -67,7 +73,7 @@ void _render_glyph(const Glyph *glyph, FontName font, uint16_t x, uint16_t y, fl
     }
 }
 
-void draw_text(uint16_t x, uint16_t y, FontAlign align, FontName font, const char *text, uint32_t color, uint16_t pixel_size, draw_line_callback_t line_callback) {
+void draw_text(uint16_t x, uint16_t y, enum FontAlign align, enum FontName font, const char *text, uint32_t color, uint16_t pixel_size, draw_line_callback_t line_callback) {
     if (align != FONT_ALIGN_LEFT) {
         uint16_t len = text_length(text, pixel_size, font);
         if (align == FONT_ALIGN_CENTER)
@@ -81,7 +87,7 @@ void draw_text(uint16_t x, uint16_t y, FontAlign align, FontName font, const cha
 
     while (*text) {
         int char_code = *text++;
-        const Glyph *glyph = find_glyph(font, char_code);
+        const struct Glyph *glyph = find_glyph(font, char_code);
         if (glyph != 0) {
             _render_glyph(glyph, font, x, y, multiplier, color, line_callback);
             x += glyph->width * multiplier;
@@ -89,14 +95,14 @@ void draw_text(uint16_t x, uint16_t y, FontAlign align, FontName font, const cha
     }
 }
 
-uint16_t text_length(const char *text, uint16_t pixel_size, FontName font) {
+uint16_t text_length(const char *text, uint16_t pixel_size, enum FontName font) {
     float tot = 0;
     uint8_t glyph_height = fonts[font].glyphs[0].height;
     float multiplier = glyph_height ? (float)pixel_size / glyph_height : 1.0f;
 
     while (*text) {
         int char_code = *text++;
-        const Glyph *glyph = find_glyph(font, char_code);
+        const struct Glyph *glyph = find_glyph(font, char_code);
         if (glyph != 0) {
             tot += glyph->width * multiplier;
         }

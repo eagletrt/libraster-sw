@@ -21,28 +21,28 @@
 #define PARTIAL_RASTER 1
 #endif
 
-/**
- * @brief Callback to draw a pixel row
+/*!
+ * \brief Callback to draw a pixel row
  * 
- * @param x Position in pixel of the first pixel on x axis
- * @param y Position in pixel of the first pixel on y axis
- * @param lenght Lenght in pixel of the line
- * @param color Color in ARGB8888 format
+ * \param[in] x Position in pixel of the first pixel on x axis
+ * \param[in] y Position in pixel of the first pixel on y axis
+ * \param[in] lenght Lenght in pixel of the line
+ * \param[in] color Color in ARGB8888 format
  */
 typedef void (*draw_line_callback_t)(uint16_t x, uint16_t y, uint16_t lenght, uint32_t color);
 
-/**
- * @brief Represents the alignment of the rendering of the text
+/*!
+ * \brief Represents the alignment of the rendering of the text
  *
- * @details
+ * \details
  *     - FONT_ALIGN_LEFT means that the text rendering will start from Coords.x to the left
  *     - FONT_ALIGN_CENTER means that the text rendering will be centered to Coords.x
  *     - FONT_ALIGN_RIGHT means that the text rendering will end at Coords.x
  */
-typedef enum {
+enum FontAlign {
     FONT_ALIGN_LEFT,
     FONT_ALIGN_CENTER,
     FONT_ALIGN_RIGHT
-} FontAlign;
+};
 
 #endif // FONTUTILS_H

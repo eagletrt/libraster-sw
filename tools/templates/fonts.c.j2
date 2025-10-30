@@ -8,15 +8,15 @@ const uint8_t sdf_data_{{ font.name }}[] = {
 {%- endfor %}
 };
 
-const Glyph glyphs_{{ font.name }}[] = {
+const struct Glyph glyphs_{{ font.name }}[] = {
 {%- for g in font.glyphs %}
     { '{{ g.char }}', {{ g.offset }}, {{ g.size }}, {{ g.width }}, {{ g.height }} },
 {%- endfor %}
 };
 {% endfor %}
 
-const Glyph* find_glyph(FontName font, char c) {
-    const Font* f = &fonts[font];
+const struct Glyph* find_glyph(enum FontName font, char c) {
+    const struct Font* f = &fonts[font];
     int low = 0;
     int high = f->glyph_count - 1;
 

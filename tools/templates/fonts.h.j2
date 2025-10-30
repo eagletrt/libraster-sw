@@ -5,33 +5,33 @@
 
 #include <stdint.h>
 
-typedef struct _Glyph {
+struct Glyph {
     char character;
     uint32_t offset;
     uint16_t size;
     uint16_t width;
     uint16_t height;
-} Glyph;
+};
 
 {% for font in fonts %}
 extern const uint8_t sdf_data_{{ font.name }}[];
-extern const Glyph glyphs_{{ font.name }}[];
+extern const struct Glyph glyphs_{{ font.name }}[];
 {% endfor %}
 
-typedef struct _Font {
+struct Font {
     uint8_t size;
     const uint8_t* sdf_data;
-    const Glyph* glyphs;
+    const struct Glyph* glyphs;
     uint16_t glyph_count;
-} Font;
+};
 
-typedef enum _FontName {
+enum FontName {
 {%- for font in fonts %}
     FONT_{{ font.name|upper }}{{ "," if not loop.last else "" }}
 {%- endfor %}
-} FontName;
+};
 
-static const Font fonts[] = {
+static const struct Font fonts[] = {
 {%- for font in fonts %}
     { {{ font.size }}, sdf_data_{{ font.name }}, glyphs_{{ font.name }}, {{ font.glyphs|length }} },
 {%- endfor %}
@@ -44,6 +44,6 @@ static const Font fonts[] = {
  * @param c Is the character we're searching for.
  * @return Pointer to the Glyph is found, NULL if not found.
  */
-const Glyph* find_glyph(FontName font, char c);
+const struct Glyph* find_glyph(enum FontName font, char c);
 
 #endif // FONTS_H

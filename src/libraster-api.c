@@ -1,9 +1,15 @@
-/**
- * @file libraster-api.c
- * @date 2024-12-13
- * @author Alessandro Bridi [ale.bridi15@gmail.com]
+/*!
+ * \file libraster-api.c
+ * \date 2024-12-13
+ * \authors Alessandro Bridi [ale.bridi15@gmail.com]
  *
- * @brief Graphics handling functions
+ * \brief LibRaster APIs functions implementations
+ *
+ * \details A rasterizer is a software renderer that works by writing pixels to
+ *      a framebuffer.
+ *      This implementation lets the user define 3 callbacks that defines the
+ *      technique used to write them, so that hardware accelerators can be used
+ *      to archive big speedups.
  */
 
 #include "libraster-api.h"
@@ -39,7 +45,7 @@ uint32_t _interpolate_color(uint32_t color1, uint32_t color2, float min, float m
     return (a << 24) | (r << 16) | (g << 8) | b;
 }
 
-void _extract_threshold(Box *box, uint32_t *bg_color, uint32_t *fg_color) {
+void _extract_threshold(struct Box *box, uint32_t *bg_color, uint32_t *fg_color) {
     for (int i = 0; i < box->value->colors.thresholds->thresholds_num; i++) {
         if (box->value->colors.thresholds->threshold[i].min <= box->value->value && box->value->value <= box->value->colors.thresholds->threshold[i].max) {
             *bg_color = box->value->colors.thresholds->threshold[i].bg_color;
@@ -48,7 +54,7 @@ void _extract_threshold(Box *box, uint32_t *bg_color, uint32_t *fg_color) {
     }
 }
 
-void _calculate_slider_position(Box *box, uint32_t *x, uint32_t *y, uint32_t *width, uint32_t *height) {
+void _calculate_slider_position(struct Box *box, uint32_t *x, uint32_t *y, uint32_t *width, uint32_t *height) {
     float percent = 1.f - ((box->value->value - box->value->colors.slider.min) /
                            (box->value->colors.slider.max - box->value->colors.slider.min));
     if (box->value->colors.slider.anchor == ANCHOR_TOP || box->value->colors.slider.anchor == ANCHOR_BOTTOM) {
@@ -64,7 +70,7 @@ void _calculate_slider_position(Box *box, uint32_t *x, uint32_t *y, uint32_t *wi
     }
 }
 
-void _draw_text_box(Box *box, draw_rectangle_callback_t draw_rectangle, draw_line_callback_t line_callback) {
+void _draw_text_box(struct Box *box, draw_rectangle_callback_t draw_rectangle, draw_line_callback_t line_callback) {
 #if PARTIAL_RASTER
     if (!box->updated)
         return;
@@ -122,7 +128,7 @@ void _draw_text_box(Box *box, draw_rectangle_callback_t draw_rectangle, draw_lin
     }
 }
 
-void render_interface(Box *text_boxes, uint16_t num, draw_line_callback_t draw_line, draw_rectangle_callback_t draw_rectangle
+void render_interface(struct Box *text_boxes, uint16_t num, draw_line_callback_t draw_line, draw_rectangle_callback_t draw_rectangle
 #if PARTIAL_RASTER == 0
                       ,
                       clear_screen_callback_t clear_screen
@@ -137,7 +143,7 @@ void render_interface(Box *text_boxes, uint16_t num, draw_line_callback_t draw_l
     }
 }
 
-Box *get_box(Box *boxes, uint16_t num, uint16_t id) {
+struct Box *get_box(struct Box *boxes, uint16_t num, uint16_t id) {
     // Loops and search for IDs (can be good for CAN IDs)
     for (int i = 0; i < num; i++) {
         if ((boxes + i)->id == id) {
@@ -147,7 +153,7 @@ Box *get_box(Box *boxes, uint16_t num, uint16_t id) {
     return NULL;
 }
 
-void create_label(Label *label, char *text, Coords pos, FontName font, uint16_t font_size, FontAlign align) {
+void create_label(struct Label *label, char *text, struct Coords pos, enum FontName font, uint16_t font_size, enum FontAlign align) {
     if (label) {
         label->text = text;
         label->pos = pos;
@@ -157,7 +163,7 @@ void create_label(Label *label, char *text, Coords pos, FontName font, uint16_t 
     }
 }
 
-void create_value(Value *value, float val, bool is_float, Coords pos, FontName font, uint16_t font_size, FontAlign align, Colors colors, ColorType color_type) {
+void create_value(struct Value *value, float val, bool is_float, struct Coords pos, enum FontName font, uint16_t font_size, enum FontAlign align, union Colors colors, enum ColorType color_type) {
     if (value) {
         value->value = val;
         value->is_float = is_float;
