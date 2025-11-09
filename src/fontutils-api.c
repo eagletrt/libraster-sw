@@ -19,8 +19,6 @@ void _draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, floa
         *current_x += count;
         *current_y += *current_x / glyph_width;
         *current_x %= glyph_width;
-        if (*current_y >= glyph_height)
-            return;
         return;
     }
 
