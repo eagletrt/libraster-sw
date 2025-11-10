@@ -5,12 +5,15 @@
 
 #include <stdint.h>
 
+/*!
+ * \brief Structure representing a single glyph in a font.
+ */
 struct Glyph {
-    char character;
-    uint32_t offset;
-    uint16_t size;
-    uint16_t width;
-    uint16_t height;
+    char character;   /*!< The character this glyph represents */
+    uint32_t offset;  /*!< Offset in the SDF data array */
+    uint16_t size;    /*!< Size of the glyph data */
+    uint16_t width;   /*!< Width of the glyph */
+    uint16_t height;  /*!< Height of the glyph */
 };
 
 {% for font in fonts %}
@@ -18,13 +21,19 @@ extern const uint8_t sdf_data_{{ font.name }}[];
 extern const struct Glyph glyphs_{{ font.name }}[];
 {% endfor %}
 
+/*!
+ * \brief Structure representing a font.
+ */
 struct Font {
-    uint8_t size;
-    const uint8_t* sdf_data;
-    const struct Glyph* glyphs;
-    uint16_t glyph_count;
+    uint8_t size;                /*!< Size of the font */
+    const uint8_t *sdf_data;     /*!< Pointer to the SDF data array */
+    const struct Glyph *glyphs;  /*!< Pointer to the array of glyphs */
+    uint16_t glyph_count;        /*!< Number of glyphs in the font */
 };
 
+/*!
+ * \brief Enumeration of available fonts.
+ */
 enum FontName {
 {%- for font in fonts %}
     FONT_{{ font.name|upper }}{{ "," if not loop.last else "" }}
@@ -37,12 +46,17 @@ static const struct Font fonts[] = {
 {%- endfor %}
 };
 
-/**
- * Binary seach to find the glyph we want
- * 
- * @param font Is the one in the enumerator.
- * @param c Is the character we're searching for.
- * @return Pointer to the Glyph is found, NULL if not found.
+/*!
+ * \brief Finds a glyph for a given character in the specified font.
+ *
+ * \details This function searches through the glyphs of the specified font
+ *      to find the glyph corresponding to the given character. It uses
+ *      binary search for efficient lookup.
+ *
+ * \param font The font to search in.
+ * \param c The character to find.
+ *
+ * \return Pointer to the Glyph structure if found, NULL otherwise.
  */
 const struct Glyph* find_glyph(enum FontName font, char c);
 

@@ -14,7 +14,25 @@
 
 #include "fontutils-api.h"
 
-void _draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, float multiplier, int16_t glyph_width, int16_t glyph_height, int16_t *current_x, int16_t *current_y, uint32_t color, draw_line_callback_t line_callback) {
+/*!
+ * \brief Draw a run-length encoded series of pixel_size
+ *
+ * \details This function draws a series of pixels encoded with run-length
+ *     encoding (RLE). It calculates the position and size of the pixels to be
+ *     drawn based on the provided parameters, including scaling multiplier.
+ * 
+ * \param[in] count Number of pixels in the series
+ * \param[in] value Alpha value of the pixels in the series
+ * \param[in] x X position of the glyph
+ * \param[in] y Y position of the glyph
+ * \param[in] multiplier Scaling multiplier
+ * \param[in] glyph_width Width of the glyph
+ * \param[in,out] current_x Current X position in the glyph
+ * \param[in,out] current_y Current Y position in the glyph
+ * \param[in] color Base color of the glyph
+ * \param[in] line_callback Callback to draw a horizontal line of pixels
+ */
+void _draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, float multiplier, int16_t glyph_width, int16_t *current_x, int16_t *current_y, uint32_t color, draw_line_callback_t line_callback) {
     if (value < 30) {
         *current_x += count;
         *current_y += *current_x / glyph_width;
@@ -44,10 +62,23 @@ void _draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, floa
     *current_x += count;
     *current_y += *current_x / glyph_width;
     *current_x %= glyph_width;
-    if (*current_y >= glyph_height)
-        return;
 }
 
+/*!
+ * \brief Render a glyph at a specified position with scaling and color
+ *
+ * \details This function renders a glyph at the specified position (x, y)
+ *     with the given scaling multiplier and color. It processes the glyph's
+ *     SDF data using run-length encoding (RLE) to efficiently draw the pixels.
+ * 
+ * \param[in] glyph Pointer to the Glyph structure to be rendered
+ * \param[in] font Font name enumeration
+ * \param[in] x X position to render the glyph
+ * \param[in] y Y position to render the glyph
+ * \param[in] multiplier Scaling multiplier for the glyph size
+ * \param[in] color Base color of the glyph
+ * \param[in] line_callback Callback to draw a horizontal line of pixels
+ */
 void _render_glyph(const struct Glyph *glyph, enum FontName font, uint16_t x, uint16_t y, float multiplier, uint32_t color, draw_line_callback_t line_callback) {
     const uint8_t *data = &fonts[font].sdf_data[glyph->offset];
     uint16_t remaining_size = glyph->size;
@@ -66,8 +97,8 @@ void _render_glyph(const struct Glyph *glyph, enum FontName font, uint16_t x, ui
         uint8_t count2 = *data++;
         remaining_size -= 2;
 
-        _draw_rle_series(count1, value1, x, y, multiplier, glyph_width, glyph_height, &current_x, &current_y, color, line_callback);
-        _draw_rle_series(count2, value2, x, y, multiplier, glyph_width, glyph_height, &current_x, &current_y, color, line_callback);
+        _draw_rle_series(count1, value1, x, y, multiplier, glyph_width, &current_x, &current_y, color, line_callback);
+        _draw_rle_series(count2, value2, x, y, multiplier, glyph_width, &current_x, &current_y, color, line_callback);
     }
 }
 

@@ -19,6 +19,21 @@
 #include <string.h>
 #include <stdlib.h>
 
+/*!
+ * \brief Interpolates between two colors based on a value within a specified range
+ *
+ * \details This function takes two colors and interpolates between them based on
+ *     the actual value within the specified min and max range. The interpolation
+ *     is linear and clamps the actual value to the min and max bounds.
+ * 
+ * \param[in] color1 The starting color (ARGB format)
+ * \param[in] color2 The ending color (ARGB format)
+ * \param[in] min The minimum value of the range
+ * \param[in] max The maximum value of the range
+ * \param[in] actual_value The actual value to interpolate
+ *
+ * \return The interpolated color (ARGB format)
+ */
 uint32_t _interpolate_color(uint32_t color1, uint32_t color2, float min, float max, float actual_value) {
     if (actual_value < min)
         actual_value = min;
@@ -45,6 +60,17 @@ uint32_t _interpolate_color(uint32_t color1, uint32_t color2, float min, float m
     return (a << 24) | (r << 16) | (g << 8) | b;
 }
 
+/*!
+ * \brief Extracts background and foreground colors based on thresholds
+ *
+ * \details This function iterates through the defined thresholds in the box's
+ *     value and sets the background and foreground colors based on the current
+ *     value falling within a specific threshold range.
+ * 
+ * \param[in] box Pointer to the Box structure containing the value and thresholds
+ * \param[out] bg_color Pointer to store the extracted background color
+ * \param[out] fg_color Pointer to store the extracted foreground color
+ */
 void _extract_threshold(struct Box *box, uint32_t *bg_color, uint32_t *fg_color) {
     for (int i = 0; i < box->value->colors.thresholds->thresholds_num; i++) {
         if (box->value->colors.thresholds->threshold[i].min <= box->value->value && box->value->value <= box->value->colors.thresholds->threshold[i].max) {
@@ -54,6 +80,20 @@ void _extract_threshold(struct Box *box, uint32_t *bg_color, uint32_t *fg_color)
     }
 }
 
+/*!
+ * \brief Calculates the position and size of a slider based on the box's value
+ *
+ * \details This function calculates the position (x, y) and size (width, height)
+ *     of a slider within the box based on the current value and the defined
+ *     minimum and maximum values for the slider. The position is determined by
+ *     the anchor point specified in the slider configuration.
+ * 
+ * \param[in] box Pointer to the Box structure containing the value and slider configuration
+ * \param[out] x Pointer to store the calculated x position of the slider
+ * \param[out] y Pointer to store the calculated y position of the slider
+ * \param[out] width Pointer to store the calculated width of the slider
+ * \param[out] height Pointer to store the calculated height of the slider
+ */
 void _calculate_slider_position(struct Box *box, uint32_t *x, uint32_t *y, uint32_t *width, uint32_t *height) {
     float percent = 1.f - ((box->value->value - box->value->colors.slider.min) /
                            (box->value->colors.slider.max - box->value->colors.slider.min));
@@ -70,6 +110,17 @@ void _calculate_slider_position(struct Box *box, uint32_t *x, uint32_t *y, uint3
     }
 }
 
+/*!
+ * \brief Draws a text box with background, value, and label
+ *
+ * \details This function draws a text box on the screen using the provided
+ *     drawing callbacks. It handles background color, value formatting,
+ *     threshold-based coloring, slider rendering, and label drawing.
+ * 
+ * \param[in] box Pointer to the Box structure containing the text box configuration
+ * \param[in] draw_rectangle Callback function to draw rectangles
+ * \param[in] line_callback Callback function to draw lines of text
+ */
 void _draw_text_box(struct Box *box, draw_rectangle_callback_t draw_rectangle, draw_line_callback_t line_callback) {
 #if PARTIAL_RASTER
     if (!box->updated)

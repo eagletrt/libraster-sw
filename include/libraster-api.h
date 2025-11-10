@@ -76,6 +76,7 @@ void create_label(struct Label *label, char *text, struct Coords pos, enum FontN
  * \param[in] font_size Value size
  * \param[in] align ALignment of font
  * \param[in] colors Pointer to color ranges
+ * \param[in] color_type Type of color selection
  */
 void create_value(struct Value *value, float val, bool is_float, struct Coords pos, enum FontName font, uint16_t font_size, enum FontAlign align, union Colors colors, enum ColorType color_type);
 
