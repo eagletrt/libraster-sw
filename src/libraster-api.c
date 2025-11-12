@@ -34,7 +34,7 @@
  *
  * \return The interpolated color (ARGB format)
  */
-uint32_t _interpolate_color(uint32_t color1, uint32_t color2, float min, float max, float actual_value) {
+uint32_t prv_interpolate_color(uint32_t color1, uint32_t color2, float min, float max, float actual_value) {
     if (actual_value < min)
         actual_value = min;
     if (actual_value > max)
@@ -71,7 +71,7 @@ uint32_t _interpolate_color(uint32_t color1, uint32_t color2, float min, float m
  * \param[out] bg_color Pointer to store the extracted background color
  * \param[out] fg_color Pointer to store the extracted foreground color
  */
-void _extract_threshold(struct Box *box, uint32_t *bg_color, uint32_t *fg_color) {
+void prv_extract_threshold(struct Box *box, uint32_t *bg_color, uint32_t *fg_color) {
     for (int i = 0; i < box->value->colors.thresholds->thresholds_num; i++) {
         if (box->value->colors.thresholds->threshold[i].min <= box->value->value && box->value->value <= box->value->colors.thresholds->threshold[i].max) {
             *bg_color = box->value->colors.thresholds->threshold[i].bg_color;
@@ -94,7 +94,7 @@ void _extract_threshold(struct Box *box, uint32_t *bg_color, uint32_t *fg_color)
  * \param[out] width Pointer to store the calculated width of the slider
  * \param[out] height Pointer to store the calculated height of the slider
  */
-void _calculate_slider_position(struct Box *box, uint32_t *x, uint32_t *y, uint32_t *width, uint32_t *height) {
+void prv_calculate_slider_position(struct Box *box, uint32_t *x, uint32_t *y, uint32_t *width, uint32_t *height) {
     float percent = 1.f - ((box->value->value - box->value->colors.slider.min) /
                            (box->value->colors.slider.max - box->value->colors.slider.min));
     if (box->value->colors.slider.anchor == ANCHOR_TOP || box->value->colors.slider.anchor == ANCHOR_BOTTOM) {
@@ -121,7 +121,7 @@ void _calculate_slider_position(struct Box *box, uint32_t *x, uint32_t *y, uint3
  * \param[in] draw_rectangle Callback function to draw rectangles
  * \param[in] line_callback Callback function to draw lines of text
  */
-void _draw_text_box(struct Box *box, draw_rectangle_callback_t draw_rectangle, draw_line_callback_t line_callback) {
+void prv_draw_text_box(struct Box *box, draw_rectangle_callback_t draw_rectangle, draw_line_callback_t line_callback) {
 #if PARTIAL_RASTER
     if (!box->updated)
         return;
@@ -131,20 +131,20 @@ void _draw_text_box(struct Box *box, draw_rectangle_callback_t draw_rectangle, d
 
     // In this block colors are selected based on thresholds selected for value (if any)
     if (box->value && box->value->color_type == THRESHOLDS && box->value->colors.thresholds) {
-        _extract_threshold(box, &bg_color, &fg_color);
+        prv_extract_threshold(box, &bg_color, &fg_color);
     } else if (box->value && box->value->color_type == INTERPOLATION) {
-        bg_color = _interpolate_color(box->value->colors.interpolation.color_min,
-                                      box->value->colors.interpolation.color_max,
-                                      box->value->colors.interpolation.min,
-                                      box->value->colors.interpolation.max,
-                                      box->value->value);
+        bg_color = prv_interpolate_color(box->value->colors.interpolation.color_min,
+                                         box->value->colors.interpolation.color_max,
+                                         box->value->colors.interpolation.min,
+                                         box->value->colors.interpolation.max,
+                                         box->value->value);
     }
 
     // Draw the basic rectangle
     draw_rectangle(box->rect.x, box->rect.y, box->rect.w, box->rect.h, bg_color);
     if (box->value && box->value->color_type == SLIDER) {
         uint32_t x, y, width, height;
-        _calculate_slider_position(box, &x, &y, &width, &height);
+        prv_calculate_slider_position(box, &x, &y, &width, &height);
         draw_rectangle(x, y, width, height, box->value->colors.slider.color);
     }
     if (box->value) {
@@ -190,7 +190,7 @@ void render_interface(struct Box *text_boxes, uint16_t num, draw_line_callback_t
     clear_screen();
 #endif
     for (int i = 0; i < num; i++) {
-        _draw_text_box(text_boxes + i, draw_rectangle, draw_line);
+        prv_draw_text_box(text_boxes + i, draw_rectangle, draw_line);
     }
 }
 

@@ -150,8 +150,7 @@ struct Box {
 #if PARTIAL_RASTER
     bool updated; /*!< Flag to indicate if the box needs to be redrawn */
 #endif
-    uint16_t id; /*!< Unique identifier for the box */
-    ;
+    uint16_t id;               /*!< Unique identifier for the box */
     struct Rect rect;          /*!< Rectangle area of the box */
     uint32_t default_bg_color; /*!< Default background color of the box (ARGB format) */
     uint32_t default_fg_color; /*!< Default foreground color of the box (ARGB format) */

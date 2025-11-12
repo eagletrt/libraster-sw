@@ -45,8 +45,9 @@ void render_interface(struct Box *boxes, uint16_t num, draw_line_callback_t draw
  * \details Used to retrieve a specific box that needs to be modified.
  *
  * \param[in] boxes Pointer to the defined interface
- * \param[in] num Nunber of Box in the inteface
+ * \param[in] num Number of Box in the interface
  * \param[in] id ID of the box to search for
+ *
  * \return struct Box*
  *     - Box pointer if found
  *     - NULL if not found

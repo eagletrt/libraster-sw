@@ -102,7 +102,7 @@ static inline void prv_render_glyph(const struct Glyph *glyph, enum FontName fon
     }
 }
 
-void draw_text(uint16_t x, uint16_t y, enum FontAlign align, enum FontName font, const char * __restrict__ text, uint32_t color, uint16_t pixel_size, draw_line_callback_t line_callback) {
+void draw_text(uint16_t x, uint16_t y, enum FontAlign align, enum FontName font, const char *__restrict__ text, uint32_t color, uint16_t pixel_size, draw_line_callback_t line_callback) {
     if (align != FONT_ALIGN_LEFT) {
         uint16_t len = text_length(text, pixel_size, font);
         if (align == FONT_ALIGN_CENTER)
@@ -124,7 +124,7 @@ void draw_text(uint16_t x, uint16_t y, enum FontAlign align, enum FontName font,
     }
 }
 
-uint16_t text_length(const char * __restrict__ text, uint16_t pixel_size, enum FontName font) {
+uint16_t text_length(const char *__restrict__ text, uint16_t pixel_size, enum FontName font) {
     float tot = 0;
     uint8_t glyph_height = fonts[font].glyphs[0].height;
     float multiplier = glyph_height ? (float)pixel_size / glyph_height : 1.0f;
