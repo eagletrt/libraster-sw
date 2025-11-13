@@ -36,7 +36,7 @@ The idea is to let the user decide how things are done. This helps with performa
     logging.basicConfig(encoding='utf-8', level=logging.INFO)
 
     if not json_path.exists():
-        logger.warning("[libraster-sw] fonts.json not found")
+        logger.warning("[libraster] fonts.json not found")
         exit(1)
     elif not hash_path.exists() or hash_file(json_path) != hash_path.read_text():
         logger.info("[libraster] generating")
