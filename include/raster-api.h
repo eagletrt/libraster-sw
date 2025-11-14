@@ -32,7 +32,7 @@
  * \param[in] draw_rectangle Draw rectangle callback
  * \param[in] clear_screen Clear screen callback
  */
-void render_interface(struct Box *boxes, uint16_t num, draw_line_callback draw_line, draw_rectangle_callback draw_rectangle, clear_screen_callback clear_screen);
+void raster_api_render(struct Box *boxes, uint16_t num, draw_line_callback draw_line, draw_rectangle_callback draw_rectangle, clear_screen_callback clear_screen);
 
 /*!
  * \brief Utility to get a Box based on id value
@@ -47,7 +47,7 @@ void render_interface(struct Box *boxes, uint16_t num, draw_line_callback draw_l
  *     - Box pointer if found
  *     - NULL if not found
  */
-struct Box *get_box(struct Box *boxes, uint16_t num, uint16_t id);
+struct Box *raster_api_get_box(struct Box *boxes, uint16_t num, uint16_t id);
 
 /*!
  * \brief Utility to populate struct Label
@@ -59,6 +59,15 @@ struct Box *get_box(struct Box *boxes, uint16_t num, uint16_t id);
  * \param[in] font_size Text size
  * \param[in] align Alignment of font
  */
-void create_label(struct Label *label, union LabelData value, enum LabelDataType type, struct Coords pos, enum FontName font, uint16_t size, enum FontAlign align);
+void raster_api_create_label(struct Label *label, union LabelData value, enum LabelDataType type, struct Coords pos, enum FontName font, uint16_t size, enum FontAlign align);
+
+/*!
+ * \brief Utility to set label data inside a Box
+ *
+ * \param[in,out] box The box to modify
+ * \param[in] value Union of possible value types
+ * \param[in] type Type of the value passed
+ */
+void raster_api_set_label_data(struct Box *box, union LabelData value, enum LabelDataType type);
 
 #endif // RASTER_API_H

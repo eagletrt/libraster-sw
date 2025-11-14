@@ -39,10 +39,10 @@ struct Color {
     union {
         uint32_t argb; /*!< Color in ARGB format */
         struct {
-            uint8_t b;  /*!< Blue component */
-            uint8_t g;  /*!< Green component */
-            uint8_t r;  /*!< Red component */
-            uint8_t a;  /*!< Alpha component */
+            uint8_t b; /*!< Blue component */
+            uint8_t g; /*!< Green component */
+            uint8_t r; /*!< Red component */
+            uint8_t a; /*!< Alpha component */
         };
     };
 };

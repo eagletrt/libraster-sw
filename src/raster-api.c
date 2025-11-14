@@ -74,7 +74,7 @@ void prv_draw_text_box(struct Box *box, draw_rectangle_callback draw_rectangle, 
     }
 }
 
-void render_interface(struct Box *text_boxes, uint16_t num, draw_line_callback draw_line, draw_rectangle_callback draw_rectangle, clear_screen_callback clear_screen) {
+void raster_api_render(struct Box *text_boxes, uint16_t num, draw_line_callback draw_line, draw_rectangle_callback draw_rectangle, clear_screen_callback clear_screen) {
     // Do not clear full screen for max optimization (less time spent)
     if (PARTIAL_RASTER == 0)
         clear_screen();
@@ -84,7 +84,7 @@ void render_interface(struct Box *text_boxes, uint16_t num, draw_line_callback d
     }
 }
 
-struct Box *get_box(struct Box *boxes, uint16_t num, uint16_t id) {
+struct Box *raster_api_get_box(struct Box *boxes, uint16_t num, uint16_t id) {
     // Loops and search for IDs (can be good for CAN IDs)
     for (int i = 0; i < num; i++) {
         if ((boxes + i)->id == id) {
@@ -94,7 +94,7 @@ struct Box *get_box(struct Box *boxes, uint16_t num, uint16_t id) {
     return NULL;
 }
 
-void create_label(struct Label *label, union LabelData data, enum LabelDataType type, struct Coords pos, enum FontName font, uint16_t size, enum FontAlign align) {
+void raster_api_create_label(struct Label *label, union LabelData data, enum LabelDataType type, struct Coords pos, enum FontName font, uint16_t size, enum FontAlign align) {
     if (label) {
         label->data = data;
         label->type = type;
@@ -102,5 +102,12 @@ void create_label(struct Label *label, union LabelData data, enum LabelDataType 
         label->font = font;
         label->size = size;
         label->align = align;
+    }
+}
+
+void raster_api_set_label_data(struct Box *box, union LabelData data, enum LabelDataType type) {
+    if (box && box->label) {
+        box->label->data = data;
+        box->label->type = type;
     }
 }

@@ -46,40 +46,4 @@ void font_api_draw(uint16_t x, uint16_t y, enum FontAlign align, enum FontName f
  */
 uint16_t font_api_length(const char *text, uint16_t size, enum FontName font);
 
-/*!
- * \brief Utility to extract 8 bit alpha value from ARGB8888 format
- *
- * \param[in] color Color value
- *
- * \return alpha value
- */
-uint8_t get_alpha(uint32_t color);
-
-/*!
- * \brief Utility to extract 8 bit red value from ARGB8888 format
- *
- * \param[in] color Color value
- *
- * \return red value
- */
-uint8_t get_red(uint32_t color);
-
-/*!
- * \brief Utility to extract 8 bit green value from ARGB8888 format
- *
- * \param[in] color Color value
- *
- * \return green value
- */
-uint8_t get_green(uint32_t color);
-
-/*!
- * \brief Utility to extract 8 bit blue value from ARGB8888 format
- *
- * \param[in] color Color value
- *
- * \return blue value
- */
-uint8_t get_blue(uint32_t color);
-
 #endif // FONTUTILS_API_H

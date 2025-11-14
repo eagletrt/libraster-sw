@@ -138,19 +138,3 @@ uint16_t font_api_length(const char *__restrict__ text, uint16_t pixel_size, enu
     }
     return (uint16_t)tot;
 }
-
-uint8_t get_alpha(uint32_t color) {
-    return color >> 24;
-}
-
-uint8_t get_red(uint32_t color) {
-    return color >> 16;
-}
-
-uint8_t get_green(uint32_t color) {
-    return color >> 8;
-}
-
-uint8_t get_blue(uint32_t color) {
-    return color;
-}
