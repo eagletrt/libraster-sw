@@ -29,10 +29,10 @@
  * \param[in] font Font name described (uppercase)
  * \param[in] text Pointer to text to draw
  * \param[in] color ARGB color value (alpha is ignored)
- * \param[in] pixel_size Size of the font to render
+ * \param[in] size Of which size (vertically) the text is to be rendere
  * \param[in] line_callback Callback used to draw a line
  */
-void draw_text(uint16_t x, uint16_t y, enum FontAlign align, enum FontName font, const char *text, uint32_t color, uint16_t pixel_size, draw_line_callback_t line_callback);
+void font_api_draw(uint16_t x, uint16_t y, enum FontAlign align, enum FontName font, const char *__restrict__ text, struct Color color, uint16_t size, draw_line_callback line_callback);
 
 /*!
  * \brief Calcaulate the length on the text in pixel
@@ -41,10 +41,10 @@ void draw_text(uint16_t x, uint16_t y, enum FontAlign align, enum FontName font,
  *      rendered text. This is useful to align horizontally the text.
  *
  * \param[in] text The string to be rendered
- * \param[in] pixel_size Of which size (vertically) the text is to be rendered
+ * \param[in] size Of which size (vertically) the text is to be rendered
  * \param[in] font Which font to be used
  */
-uint16_t text_length(const char *text, uint16_t pixel_size, enum FontName font);
+uint16_t font_api_length(const char *text, uint16_t size, enum FontName font);
 
 /*!
  * \brief Utility to extract 8 bit alpha value from ARGB8888 format

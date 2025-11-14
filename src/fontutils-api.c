@@ -32,7 +32,7 @@
  * \param[in] color Base color of the glyph
  * \param[in] line_callback Callback to draw a horizontal line of pixels
  */
-static inline void prv_draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, float multiplier, int16_t glyph_width, int16_t *current_x, int16_t *current_y, uint32_t color, draw_line_callback_t line_callback) {
+static inline void prv_draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, float multiplier, int16_t glyph_width, int16_t *current_x, int16_t *current_y, struct Color color, draw_line_callback line_callback) {
     if (value < 30) {
         *current_x += count;
         *current_y += *current_x / glyph_width;
@@ -40,7 +40,7 @@ static inline void prv_draw_rle_series(uint8_t count, uint8_t value, uint16_t x,
         return;
     }
 
-    uint32_t blended_color = (color & 0x00ffffff) | ((uint32_t)value << 24);
+    uint32_t blended_color = (color.argb & 0x00ffffff) | ((uint32_t)value << 24);
 
     int16_t start_x = x + (*current_x * multiplier);
     int16_t start_y = y + (*current_y * multiplier);
@@ -56,7 +56,7 @@ static inline void prv_draw_rle_series(uint8_t count, uint8_t value, uint16_t x,
 
     // Fill any potential gaps when scaling by ensuring consecutive rows are drawn
     for (int j = 0; j < draw_height; ++j) {
-        line_callback(start_x, start_y + j, draw_width, blended_color);
+        line_callback(start_x, start_y + j, draw_width, (struct Color){ blended_color });
     }
 
     *current_x += count;
@@ -79,7 +79,7 @@ static inline void prv_draw_rle_series(uint8_t count, uint8_t value, uint16_t x,
  * \param[in] color Base color of the glyph
  * \param[in] line_callback Callback to draw a horizontal line of pixels
  */
-static inline void prv_render_glyph(const struct Glyph *glyph, enum FontName font, uint16_t x, uint16_t y, float multiplier, uint32_t color, draw_line_callback_t line_callback) {
+static inline void prv_render_glyph(const struct Glyph *glyph, enum FontName font, uint16_t x, uint16_t y, float multiplier, struct Color color, draw_line_callback line_callback) {
     const uint8_t *data = &fonts[font].sdf_data[glyph->offset];
     uint16_t remaining_size = glyph->size;
 
@@ -102,9 +102,9 @@ static inline void prv_render_glyph(const struct Glyph *glyph, enum FontName fon
     }
 }
 
-void draw_text(uint16_t x, uint16_t y, enum FontAlign align, enum FontName font, const char *__restrict__ text, uint32_t color, uint16_t pixel_size, draw_line_callback_t line_callback) {
+void font_api_draw(uint16_t x, uint16_t y, enum FontAlign align, enum FontName font, const char *__restrict__ text, struct Color color, uint16_t pixel_size, draw_line_callback line_callback) {
     if (align != FONT_ALIGN_LEFT) {
-        uint16_t len = text_length(text, pixel_size, font);
+        uint16_t len = font_api_length(text, pixel_size, font);
         if (align == FONT_ALIGN_CENTER)
             x -= len / 2;
         else if (align == FONT_ALIGN_RIGHT)
@@ -124,7 +124,7 @@ void draw_text(uint16_t x, uint16_t y, enum FontAlign align, enum FontName font,
     }
 }
 
-uint16_t text_length(const char *__restrict__ text, uint16_t pixel_size, enum FontName font) {
+uint16_t font_api_length(const char *__restrict__ text, uint16_t pixel_size, enum FontName font) {
     float tot = 0;
     uint8_t glyph_height = fonts[font].glyphs[0].height;
     float multiplier = glyph_height ? (float)pixel_size / glyph_height : 1.0f;

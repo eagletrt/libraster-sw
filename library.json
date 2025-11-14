@@ -21,17 +21,12 @@
   "frameworks": "*",
   "platforms": "*",
   "headers": [
-      "libraster.h",
-      "libraster-api.h",
+      "raster.h",
+      "raster-api.h",
       "fontutils.h",
       "fontutils-api.h"
   ],
   "examples": [
-      {
-          "name": "Demo using batch rendering of glyphs",
-          "base": "examples",
-          "files": [ "batch-font-rendering.c" ]
-      },
       {
           "name": "Demo using direct rendering of glyphs",
           "base": "examples",

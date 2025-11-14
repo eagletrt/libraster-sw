@@ -15,7 +15,7 @@
 #ifndef RASTER_API_H
 #define RASTER_API_H
 
-#include "libraster.h"
+#include "raster.h"
 
 /*!
  * \brief Renders the whole interface
@@ -32,12 +32,7 @@
  * \param[in] draw_rectangle Draw rectangle callback
  * \param[in] clear_screen Clear screen callback
  */
-void render_interface(struct Box *boxes, uint16_t num, draw_line_callback_t draw_line, draw_rectangle_callback_t draw_rectangle
-#if PARTIAL_RASTER == 0
-                      ,
-                      clear_screen_callback_t clear_screen
-#endif
-);
+void render_interface(struct Box *boxes, uint16_t num, draw_line_callback draw_line, draw_rectangle_callback draw_rectangle, clear_screen_callback clear_screen);
 
 /*!
  * \brief Utility to get a Box based on id value
@@ -58,27 +53,12 @@ struct Box *get_box(struct Box *boxes, uint16_t num, uint16_t id);
  * \brief Utility to populate struct Label
  *
  * \param[out] label The label struct to populate
- * \param[in] text Text in the label
+ * \param[in] value Union of possible value types
  * \param[in] pos Position of the text
  * \param[in] font Font name (defined in generation)
  * \param[in] font_size Text size
  * \param[in] align Alignment of font
  */
-void create_label(struct Label *label, char *text, struct Coords pos, enum FontName font, uint16_t font_size, enum FontAlign align);
-
-/*!
- * \brief Utility to populate struct Value
- *
- * \param[out] value The value struct to populate
- * \param[in] val Value
- * \param[in] is_float Says is the value is to cast to int
- * \param[in] pos Position of the value
- * \param[in] font Font name (defined in generation)
- * \param[in] font_size Value size
- * \param[in] align ALignment of font
- * \param[in] colors Pointer to color ranges
- * \param[in] color_type Type of color selection
- */
-void create_value(struct Value *value, float val, bool is_float, struct Coords pos, enum FontName font, uint16_t font_size, enum FontAlign align, union Colors colors, enum ColorType color_type);
+void create_label(struct Label *label, union LabelData value, enum LabelDataType type, struct Coords pos, enum FontName font, uint16_t size, enum FontAlign align);
 
 #endif // RASTER_API_H
