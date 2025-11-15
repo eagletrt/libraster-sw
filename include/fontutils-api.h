@@ -44,6 +44,6 @@ void font_api_draw(uint16_t x, uint16_t y, enum FontAlign align, enum FontName f
  * \param[in] size Of which size (vertically) the text is to be rendered
  * \param[in] font Which font to be used
  */
-uint16_t font_api_length(const char *text, uint16_t size, enum FontName font);
+uint16_t font_api_length(const char *__restrict__ text, uint16_t size, enum FontName font);
 
 #endif // FONTUTILS_API_H

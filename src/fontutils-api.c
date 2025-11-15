@@ -13,6 +13,7 @@
  */
 
 #include "fontutils-api.h"
+#include "eagletrt.h"
 
 /*!
  * \brief Draw a run-length encoded series of pixel_size
@@ -32,7 +33,7 @@
  * \param[in] color Base color of the glyph
  * \param[in] line_callback Callback to draw a horizontal line of pixels
  */
-static inline void prv_draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, float multiplier, int16_t glyph_width, int16_t *current_x, int16_t *current_y, struct Color color, draw_line_callback line_callback) {
+EAGLETRT_STATIC_INLINE void prv_draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, float multiplier, int16_t glyph_width, int16_t *current_x, int16_t *current_y, struct Color color, draw_line_callback line_callback) {
     if (value < 30) {
         *current_x += count;
         *current_y += *current_x / glyph_width;
@@ -79,7 +80,7 @@ static inline void prv_draw_rle_series(uint8_t count, uint8_t value, uint16_t x,
  * \param[in] color Base color of the glyph
  * \param[in] line_callback Callback to draw a horizontal line of pixels
  */
-static inline void prv_render_glyph(const struct Glyph *glyph, enum FontName font, uint16_t x, uint16_t y, float multiplier, struct Color color, draw_line_callback line_callback) {
+EAGLETRT_STATIC_INLINE void prv_render_glyph(const struct Glyph *glyph, enum FontName font, uint16_t x, uint16_t y, float multiplier, struct Color color, draw_line_callback line_callback) {
     const uint8_t *data = &fonts[font].sdf_data[glyph->offset];
     uint16_t remaining_size = glyph->size;
 

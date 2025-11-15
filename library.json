@@ -17,6 +17,12 @@
       "maintainer": true
     }
   ],
+  "dependencies": [
+      {
+          "name": "LibEagleTRT",
+          "version": "git@github.com:eagletrt/libeagletrt-sw.git#v0.1.0"
+      }
+  ],
   "license": "AGPL-3.0-only",
   "frameworks": "*",
   "platforms": "*",
