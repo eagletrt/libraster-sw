@@ -1,9 +1,9 @@
 /*!
- * \file libraster-api.c
+ * \file raster-api.c
  * \date 2024-12-13
  * \authors Alessandro Bridi [ale.bridi15@gmail.com]
  *
- * \brief LibRaster APIs functions implementations
+ * \brief LibRaster API functions implementations
  *
  * \details A rasterizer is a software renderer that works by writing pixels to
  *      a framebuffer.

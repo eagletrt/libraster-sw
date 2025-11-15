@@ -10,23 +10,28 @@
 #include "fontutils-api.h"
 
 void check_get_alpha() {
-    uint8_t a = get_alpha(0xff000000);
-    TEST_ASSERT_EQUAL_UINT8(0xff, a);
+    struct Color color = { .argb = 0xff000000 };
+    TEST_ASSERT_EQUAL_UINT8(0xff, color.a);
 }
 
 void check_get_red() {
-    uint8_t r = get_red(0x00ff0000);
-    TEST_ASSERT_EQUAL_UINT8(0xff, r);
+    struct Color color = { .argb = 0x00ff0000 };
+    TEST_ASSERT_EQUAL_UINT8(0xff, color.r);
 }
 
 void check_get_green() {
-    uint8_t g = get_green(0x0000ff00);
-    TEST_ASSERT_EQUAL_UINT8(0xff, g);
+    struct Color color = { .argb = 0x0000ff00 };
+    TEST_ASSERT_EQUAL_UINT8(0xff, color.g);
 }
 
 void check_get_blue() {
-    uint8_t b = get_blue(0x000000ff);
-    TEST_ASSERT_EQUAL_UINT8(0xff, b);
+    struct Color color = { .argb = 0x000000ff };
+    TEST_ASSERT_EQUAL_UINT8(0xff, color.b);
+}
+
+void check_font_api_length() {
+    uint16_t len = font_api_length("Test", 10, FONT_KONEXY);
+    TEST_ASSERT_GREATER_THAN(0, len);
 }
 
 int main() {
@@ -36,6 +41,7 @@ int main() {
     RUN_TEST(check_get_red);
     RUN_TEST(check_get_green);
     RUN_TEST(check_get_blue);
+    RUN_TEST(check_font_api_length);
 
     UNITY_END();
 }

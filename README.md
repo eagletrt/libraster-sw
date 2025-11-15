@@ -56,10 +56,34 @@ The idea is to let the user decide how things are done. This helps with performa
     You will still need to create the `fonts.json`, but after that everything is on you. You will decide how and when to call the generator. You can pass the path to `fonts.json` using the `--json` argument.
 
 ### Actual usage
-All you have to do is include `raster-api.h` in your program, declare the interface and call the function `raster_api_render`, that uses **your** functions to draw the interface.
+All you have to do is include `raster-api.h` in your program, create labels and boxes, then call the function `raster_api_render` with **your** callback functions to draw the interface.
 
 > [!IMPORTANT]
 > If you're using 2 buffers, you still have to swap them yourself.
+
+#### Callback Functions
+
+You need to implement three callback functions:
+
+```c
+// Draw a horizontal line of pixels
+void draw_line_callback(uint16_t x, uint16_t y, uint16_t lenght, struct Color color) {
+    // Your implementation here
+    // This is called for text rendering
+}
+
+// Draw a filled rectangle
+void draw_rectangle_callback(uint16_t x, uint16_t y, uint16_t w, uint16_t h, struct Color color) {
+    // Your implementation here
+    // This is called for box backgrounds
+}
+
+// Clear the entire screen (only used when PARTIAL_RASTER is disabled)
+void clear_screen_callback(void) {
+    // Your implementation here
+    // Only needed if PARTIAL_RASTER = 0
+}
+```
 
 #### Updating Label Data at Runtime
 
@@ -78,14 +102,14 @@ raster_api_set_label_data(speed_box,
 speed_box->updated = true;
 
 // Re-render
-raster_api_render(boxes, 4, draw_line_callback, draw_rectangle_callback, NULL);
+raster_api_render(boxes, 4, draw_line_cb, draw_rectangle_cb, NULL);
 ```
 
 #### Label Data Types
 
 The library supports the following label data types:
-- `LABEL_DATA_STRING` - Text string (const char*)
-- `LABEL_DATA_INT` - Integer value (long)
+- `LABEL_DATA_STRING` - Text string (char*)
+- `LABEL_DATA_INT` - Integer value
 - `LABEL_DATA_FLOAT_1` - Float with 1 decimal place
 - `LABEL_DATA_FLOAT_2` - Float with 2 decimal places
 - `LABEL_DATA_FLOAT_3` - Float with 3 decimal places
@@ -93,7 +117,7 @@ The library supports the following label data types:
 #### Box Structure
 
 Each box contains:
-- `updated` - Flag for partial rendering optimization
+- `updated` - Flag for partial rendering optimization (only if PARTIAL_RASTER is enabled)
 - `id` - Unique identifier for the box
 - `rect` - Rectangle dimensions (x, y, width, height)
 - `color` - Background color (ARGB format)

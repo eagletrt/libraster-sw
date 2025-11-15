@@ -1,9 +1,9 @@
 /*!
- * \file libraster.h
+ * \file raster.h
  * \date 2024-12-13
  * \author Alessandro Bridi [ale.bridi15@gmail.com]
  *
- * \brief Graphics handling functions
+ * \brief Graphics handling structures and types
  */
 
 #ifndef RASTER_H
