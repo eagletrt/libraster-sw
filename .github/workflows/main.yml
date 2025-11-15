@@ -33,6 +33,9 @@ jobs:
       - name: Install PlatformIO Core
         run: pip install --upgrade platformio
 
+      - name: Install Generator Dependencies
+        run: pip install Pillow numpy scipy jinja2
+
       - name: Run Unit Tests (or generate minimal .ini)
         run: |
           if [ ! -f "platformio.ini" ]; then
@@ -73,6 +76,9 @@ jobs:
 
       - name: Install PlatformIO Core
         run: pip install --upgrade platformio
+
+      - name: Install Generator Dependencies
+        run: pip install Pillow numpy scipy jinja2
 
       - name: Run Static Code Analysis
         run: |
