@@ -57,7 +57,7 @@ EAGLETRT_STATIC_INLINE void prv_draw_rle_series(uint8_t count, uint8_t value, ui
 
     // Fill any potential gaps when scaling by ensuring consecutive rows are drawn
     for (int j = 0; j < draw_height; ++j) {
-        line_callback(start_x, start_y + j, draw_width, (struct Color){ blended_color });
+        line_callback(start_x, start_y + j, draw_width, (struct Color){ .argb = blended_color });
     }
 
     *current_x += count;

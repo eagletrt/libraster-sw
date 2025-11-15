@@ -1,45 +1,35 @@
 #include <stdint.h>
 #include <stdlib.h>
-#include "libraster-api.h"
+#include "raster-api.h"
 
 #define WINDOW_WIDTH 50
 #define WINDOW_HEIGHT 30
 
 uint32_t framebuffer[WINDOW_HEIGHT * WINDOW_WIDTH];
 
-void draw_line_callback(uint16_t x, uint16_t y, uint16_t lenght, uint32_t color) {
+void draw_line_cb(uint16_t x, uint16_t y, uint16_t lenght, struct Color color) {
     for (int i = 0; i < lenght; i++) {
-        framebuffer[y * WINDOW_WIDTH + x] = color;
+        framebuffer[y * WINDOW_WIDTH + x] = color.argb;
     }
 }
 
-void draw_rectangle_callback(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint32_t color) {
+void draw_rectangle_cb(uint16_t x, uint16_t y, uint16_t w, uint16_t h, struct Color color) {
     for (int i = 0; i < h; i++) {
-        draw_line_callback(x, y + i, w, color);
+        draw_line_cb(x, y + i, w, color);
     }
 }
 
 int main() {
-    Threshold ranges[] = {
-        { 0.0f, 50.0f, 0x00FF00, 0x000000 },
-        { 50.1f, 100.0f, 0xFFFF00, 0x000000 },
-        { 100.1f, 200.0f, 0xFF0000, 0xFFFFFF }
+    struct Label l1;
+    raster_api_create_label(&l1, (union LabelData){ .text = "XD" }, LABEL_DATA_STRING, (struct Coords){ 0, 0 }, FONT_KONEXY, 10, FONT_ALIGN_CENTER, (struct Color){ .argb = 0xffffffff });
+    struct Label v1;
+    raster_api_create_label(&v1, (union LabelData){ .int_val = 51 }, LABEL_DATA_INT, (struct Coords){ 10, 0 }, FONT_KONEXY, 10, FONT_ALIGN_CENTER, (struct Color){ .argb = 0xffffffff });
+
+    struct Box boxes[] = {
+        { true, 0x1, { 2, 2, 397, 237 }, {.argb = 0xff000000}, &l1 },
+        { true, 0x2, { 400, 2, 397, 237 }, {.argb = 0xff000000}, &v1 },
     };
 
-    Thresholds thresholds[] = {
-        { ranges, 3 }
-    };
-
-    Label l1;
-    create_label(&l1, "XD", (Coords){ 0, 0 }, FONT_KONEXY, 10, FONT_ALIGN_CENTER);
-    Value v1;
-    create_value(&v1, 51, false, (Coords){ 10, 0 }, FONT_KONEXY, 10, FONT_ALIGN_CENTER, (Colors){ .thresholds = thresholds }, THRESHOLDS);
-
-    Box boxes[] = {
-        { 1, 0x1, { 2, 2, 397, 237 }, 0xff000000, 0xffffffff, &l1, &v1 },
-    };
-
-    render_interface(boxes, 1, draw_line_callback, draw_rectangle_callback);
-
+    raster_api_render(boxes, 2, draw_line_cb, draw_rectangle_cb, NULL);
     return 0;
 }

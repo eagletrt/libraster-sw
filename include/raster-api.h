@@ -59,7 +59,7 @@ struct Box *raster_api_get_box(struct Box *boxes, uint16_t num, uint16_t id);
  * \param[in] font_size Text size
  * \param[in] align Alignment of font
  */
-void raster_api_create_label(struct Label *label, union LabelData value, enum LabelDataType type, struct Coords pos, enum FontName font, uint16_t size, enum FontAlign align);
+void raster_api_create_label(struct Label *label, union LabelData value, enum LabelDataType type, struct Coords pos, enum FontName font, uint16_t size, enum FontAlign align, struct Color color);
 
 /*!
  * \brief Utility to set label data inside a Box

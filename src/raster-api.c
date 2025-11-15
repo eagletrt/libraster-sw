@@ -42,8 +42,8 @@ void prv_draw_text_box(struct Box *box, draw_rectangle_callback draw_rectangle, 
         char buf[128];
         struct Label *label = box->label;
         switch (label->type) {
-            case LABEL_DATA_INTEGER:
-                snprintf(buf, sizeof(buf), "%d", label->data.int_val);
+            case LABEL_DATA_INT:
+                snprintf(buf, sizeof(buf), "%ld", label->data.int_val);
                 break;
             case LABEL_DATA_FLOAT_1:
                 snprintf(buf, sizeof(buf), "%.1f", label->data.float_val);
@@ -94,7 +94,7 @@ struct Box *raster_api_get_box(struct Box *boxes, uint16_t num, uint16_t id) {
     return NULL;
 }
 
-void raster_api_create_label(struct Label *label, union LabelData data, enum LabelDataType type, struct Coords pos, enum FontName font, uint16_t size, enum FontAlign align) {
+void raster_api_create_label(struct Label *label, union LabelData data, enum LabelDataType type, struct Coords pos, enum FontName font, uint16_t size, enum FontAlign align, struct Color color) {
     if (label) {
         label->data = data;
         label->type = type;
@@ -102,6 +102,7 @@ void raster_api_create_label(struct Label *label, union LabelData data, enum Lab
         label->font = font;
         label->size = size;
         label->align = align;
+        label->color = color;
     }
 }
 

@@ -45,7 +45,7 @@ union LabelData {
  */
 enum LabelDataType {
     LABEL_DATA_STRING,  /*!< Text value type */
-    LABEL_DATA_INTEGER, /*!< Integer value type */
+    LABEL_DATA_INT,     /*!< Integer value type */
     LABEL_DATA_FLOAT_1, /*!< Float value type with 1 decimal */
     LABEL_DATA_FLOAT_2, /*!< Float value type with 2 decimals */
     LABEL_DATA_FLOAT_3  /*!< Float value type with 3 decimals */
