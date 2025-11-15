@@ -56,50 +56,49 @@ The idea is to let the user decide how things are done. This helps with performa
     You will still need to create the `fonts.json`, but after that everything is on you. You will decide how and when to call the generator. You can pass the path to `fonts.json` using the `--json` argument.
 
 ### Actual usage
-All you have to do is include `libraster-api.h` in your program, declare the interface and call the function `render_interface`, that uses **your** functions to draw the interface.
+All you have to do is include `raster-api.h` in your program, declare the interface and call the function `raster_api_render`, that uses **your** functions to draw the interface.
 
 > [!IMPORTANT]
-> If you're using 2 buffers, you still have to swap them yourself. This library still does not implement a way to do it.
+> If you're using 2 buffers, you still have to swap them yourself.
+
+#### Updating Label Data at Runtime
+
+You can update label data dynamically using `raster_api_set_label_data`:
 
 ```c
-struct Threshold ranges[] = {
-    {0.0f, 50.0f, 0x00FF00, 0x000000},
-    {50.1f, 100.0f, 0xFFFF00, 0x000000},
-    {100.1f, 200.0f, 0xFF0000, 0xFFFFFF}
-};
+// Get a specific box by ID
+struct Box *speed_box = raster_api_get_box(boxes, 4, 0x2);
 
-struct Thresholds thresholds[] = {
-    {ranges, 3}
-};
+// Update the value
+raster_api_set_label_data(speed_box, 
+    (union LabelData){ .int_val = 150 }, 
+    LABEL_DATA_INT);
 
-struct Label l1;
-create_label(&l1, "XD", (struct Coords){310, 95}, FONT_KONEXY, 40, FONT_ALIGN_CENTER);
-struct Value v1;
-create_value(&v1, 51, false, (struct Coords){140, 80}, FONT_KONEXY, 70, FONT_ALIGN_CENTER, (union Colors){ .thresholds = thresholds}, THRESHOLDS);
+// Mark box as updated for partial rendering
+speed_box->updated = true;
 
-struct Value v2;
-create_value(&v2, 51, true, (struct Coords){ 196, 80 }, FONT_KONEXY, 70, FONT_ALIGN_CENTER, (union Colors){ .slider = (struct Slider){0xff00ff00, ANCHOR_BOTTOM, 0, 200, 3}}, SLIDER);
-
-struct Label l2;
-create_label(&l2, "PROVA", (struct Coords){196, 80}, FONT_KONEXY, 70, FONT_ALIGN_CENTER);
-
-struct Value v3;
-create_value(&v3, 51.0, true, (struct Coords){ 196, 80 }, FONT_KONEXY, 70, FONT_ALIGN_CENTER, (union Colors){ .interpolation = (struct LinearInterpolation){0xff000000, 0xff00ff00, 0.0, 200.0}}, INTERPOLATION);
-
-struct Box boxes[] = {
-    { 1, 0x1, { 2, 2, 397, 237 }, 0xff000000, 0xffffffff, &l1, &v1 },
-    { 1, 0x2, { 401, 2, 397, 237 }, 0xff000000, 0xffffffff, NULL, &v2 },
-    { 1, 0x3, { 2, 241, 397, 237 }, 0xff000000, 0xffffffff, &l2, NULL },
-    { 1, 0x4, { 401, 241, 397, 237 }, 0xff000000, 0xffffffff, NULL, &v3 }
-};
+// Re-render
+raster_api_render(boxes, 4, draw_line_callback, draw_rectangle_callback, NULL);
 ```
 
-This is a simple but complete interface, and to render it just call `render_interface` like this:
-```c
-render_interface(boxes, 4, draw_line_callback, draw_rectangle_callback);
-```
+#### Label Data Types
+
+The library supports the following label data types:
+- `LABEL_DATA_STRING` - Text string (const char*)
+- `LABEL_DATA_INT` - Integer value (long)
+- `LABEL_DATA_FLOAT_1` - Float with 1 decimal place
+- `LABEL_DATA_FLOAT_2` - Float with 2 decimal places
+- `LABEL_DATA_FLOAT_3` - Float with 3 decimal places
+
+#### Box Structure
+
+Each box contains:
+- `updated` - Flag for partial rendering optimization
+- `id` - Unique identifier for the box
+- `rect` - Rectangle dimensions (x, y, width, height)
+- `color` - Background color (ARGB format)
+- `label` - Pointer to label structure (optional, can be NULL)
 
 > [!TIP]
 > Create a file `raster_config.h` with the following defines to customize behaviour:
-> - `PARTIAL_RASTER` that changes how the library behaves (default = 1).
-
+> - `PARTIAL_RASTER` - Enable/disable partial rendering optimization (default = 1). When enabled, only boxes with `updated = true` will be redrawn.
