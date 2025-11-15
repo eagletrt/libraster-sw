@@ -32,33 +32,33 @@ void check_get_box_not_found() {
 
 void check_label_building() {
     struct Label l;
-    raster_api_create_label(&l, 
-        (union LabelData){ .text = "Hello, World" }, 
-        LABEL_DATA_STRING,
-        (struct Coords){ 1, 1 }, 
-        FONT_KONEXY, 
-        15, 
-        FONT_ALIGN_CENTER,
-        (struct Color){ .argb = 0xFFFFFFFF });
+    raster_api_create_label(&l,
+                            (union LabelData){ .text = "Hello, World" },
+                            LABEL_DATA_STRING,
+                            (struct Coords){ 1, 1 },
+                            FONT_KONEXY,
+                            15,
+                            FONT_ALIGN_CENTER,
+                            (struct Color){ .argb = 0xFFFFFFFF });
 
     TEST_ASSERT_NOT_NULL(&l);
 }
 
 void check_label_data_update() {
     struct Label l;
-    raster_api_create_label(&l, 
-        (union LabelData){ .int_val = 42 }, 
-        LABEL_DATA_INT,
-        (struct Coords){ 1, 1 }, 
-        FONT_KONEXY, 
-        15, 
-        FONT_ALIGN_CENTER,
-        (struct Color){ .argb = 0xFFFFFFFF });
+    raster_api_create_label(&l,
+                            (union LabelData){ .int_val = 42 },
+                            LABEL_DATA_INT,
+                            (struct Coords){ 1, 1 },
+                            FONT_KONEXY,
+                            15,
+                            FONT_ALIGN_CENTER,
+                            (struct Color){ .argb = 0xFFFFFFFF });
 
     struct Box box = { true, 0x1, { 1, 1, 1, 1 }, { .argb = 0xFF000000 }, &l };
-    
+
     raster_api_set_label_data(&box, (union LabelData){ .int_val = 100 }, LABEL_DATA_INT);
-    
+
     TEST_ASSERT_EQUAL_INT32(100, box.label->data.int_val);
 }
 

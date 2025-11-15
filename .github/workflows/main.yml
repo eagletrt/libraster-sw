@@ -1,0 +1,83 @@
+name: PlatformIO CI
+
+on:
+  push:
+  pull_request:
+    branches:
+      - dev
+    types:
+      - closed
+
+jobs:
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache PlatformIO + pip
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio/.cache
+          key: ${{ runner.os }}-pio-${{ hashFiles('**/platformio.ini') }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install PlatformIO Core
+        run: pip install --upgrade platformio
+
+      - name: Run Unit Tests (or generate minimal .ini)
+        run: |
+          if [ ! -f "platformio.ini" ]; then
+            printf "[env:latest_stable]\nplatform = native\nlib_deps = Unity, ./\n" > platformio.ini
+            echo "Created platformio.ini"
+          fi
+          pio test -e latest_stable
+
+      - name: Run Example
+        run: pio ci -l . --exclude=src/test --exclude=src/examples -O "framework=stm32cube" examples/direct-font-rendering.c -b nucleo_h723zg
+
+  check:
+    name: Static Code Analysis
+    runs-on: ubuntu-latest
+    # Run only when:
+    #  - push to branch dev (e.g. merge commit pushed to dev), OR
+    #  - pull_request event with action closed and merged == true targeting dev
+    if: >
+      (github.event_name == 'push' && github.ref == 'refs/heads/dev') ||
+      (github.event_name == 'pull_request' && github.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'dev')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache PlatformIO + pip
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio/.cache
+          key: ${{ runner.os }}-pio-${{ hashFiles('**/platformio.ini') }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install PlatformIO Core
+        run: pip install --upgrade platformio
+
+      - name: Run Static Code Analysis
+        run: |
+          if [ ! -f "platformio.ini" ]; then
+            printf "[env:latest_stable]\nplatform = native\nlib_deps = Unity, ./\n" > platformio.ini
+            echo "Created platformio.ini"
+          fi
+          pio check
