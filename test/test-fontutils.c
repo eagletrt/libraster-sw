@@ -43,7 +43,7 @@ void check_color_individual_assignment() {
     color.r = 0x34;
     color.g = 0x56;
     color.b = 0x78;
-    
+
     TEST_ASSERT_EQUAL_UINT32(0x12345678, color.argb);
 }
 

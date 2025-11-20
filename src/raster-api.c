@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <inttypes.h>
 
 /*!
  * \brief Draws a text box with background, value, and label
@@ -43,7 +44,7 @@ void prv_draw_text_box(struct Box *box, draw_rectangle_callback draw_rectangle, 
         struct Label *label = box->label;
         switch (label->type) {
             case LABEL_DATA_INT:
-                snprintf(buf, sizeof(buf), "%ld", label->data.int_val);
+                snprintf(buf, sizeof(buf), "%" PRId32, label->data.int_val);
                 break;
             case LABEL_DATA_FLOAT_1:
                 snprintf(buf, sizeof(buf), "%.1f", label->data.float_val);
