@@ -46,8 +46,7 @@ jobs:
 
       - name: Run Example
         run: |
-          pip install Pillow numpy scipy jinja2
-          python lib/libraster-sw/tools/generator.py --json tools/fonts.json
+          python tools/generator.py --json tools/fonts.json
           pio ci -l . --exclude=src/test --exclude=src/examples -O "framework=stm32cube" examples/direct-font-rendering.c -b nucleo_h723zg
 
   check:
