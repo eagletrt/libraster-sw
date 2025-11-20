@@ -135,7 +135,7 @@ def generate_bitmaps(fonts):
     return sdf_datas, glyph_metadatas
 
 
-def generate_c_files(fonts):
+def generate_c_files(fonts, logger):
     c_file_path = os.path.join(SCRIPT_DIR, "..", "src", "fonts.c")
     h_file_path = os.path.join(SCRIPT_DIR, "..", "include", "fonts.h")
 
@@ -146,11 +146,13 @@ def generate_c_files(fonts):
     rendered = c_template.render(datetime_info=datetime_info, fonts=fonts)
     with open(c_file_path, "w") as c_file:
         c_file.write(rendered)
+    logger.info(f"Generated {c_file_path}")
 
     h_template = env.get_template("templates/fonts.h.j2")
     rendered = h_template.render(datetime_info=datetime_info, fonts=fonts)
     with open(h_file_path, "w") as h_file:
         h_file.write(rendered)
+    logger.info(f"Generated {h_file_path}")
 
 
 def main():
@@ -176,7 +178,7 @@ def main():
             ]
 
         logger.info("C and H generation")
-        generate_c_files(fonts)
+        generate_c_files(fonts, logger)
 
         logger.info("ok")
 
