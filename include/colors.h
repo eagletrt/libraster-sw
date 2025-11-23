@@ -1,3 +1,15 @@
+/*!
+ * \file colors.h
+ * \date 2025-11-20
+ * \author Alessandro Bridi [ale.bridi15@gmail.com]
+ *
+ * \brief Defines the Color structure for ARGB color representation
+ *
+ * \details This header file defines the Color structure, which uses a union
+ *     to represent colors in ARGB format. The structure allows access to the
+ *     color as a single 32-bit integer or as individual 8-bit components for
+ *     alpha, red, green, and blue.
+ */
 #ifndef COLORS_H
 #define COLORS_H
 

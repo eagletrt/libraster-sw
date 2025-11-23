@@ -31,7 +31,7 @@
  * \param[in] draw_rectangle Callback function to draw rectangles
  * \param[in] line_callback Callback function to draw lines of text
  */
-void prv_draw_text_box(struct Box *box, draw_rectangle_callback draw_rectangle, draw_line_callback line_callback) {
+void prv_draw_text_box(struct RasterBox *box, draw_rectangle_callback draw_rectangle, draw_line_callback line_callback) {
 #if PARTIAL_RASTER
     if (!box->updated)
         return;
@@ -41,7 +41,7 @@ void prv_draw_text_box(struct Box *box, draw_rectangle_callback draw_rectangle, 
     if (box->label) {
         // Format the value accordingly to what we want
         char buf[128];
-        struct Label *label = box->label;
+        struct RasterLabel *label = box->label;
         switch (label->type) {
             case LABEL_DATA_INT:
                 snprintf(buf, sizeof(buf), "%" PRId32, label->data.int_val);
@@ -75,17 +75,34 @@ void prv_draw_text_box(struct Box *box, draw_rectangle_callback draw_rectangle, 
     }
 }
 
-void raster_api_render(struct Box *text_boxes, uint16_t num, draw_line_callback draw_line, draw_rectangle_callback draw_rectangle, clear_screen_callback clear_screen) {
-    // Do not clear full screen for max optimization (less time spent)
-    if (PARTIAL_RASTER == 0)
-        clear_screen();
-
-    for (int i = 0; i < num; i++) {
-        prv_draw_text_box(text_boxes + i, draw_rectangle, draw_line);
+void raster_api_init(struct RasterHandler *hras, struct RasterBox *interface, uint16_t size, draw_line_callback draw_line, draw_rectangle_callback draw_rectangle, clear_screen_callback clear_screen) {
+    if (hras) {
+        hras->interface = interface;
+        hras->size = size;
+        hras->draw_line = draw_line;
+        hras->draw_rectangle = draw_rectangle;
+        hras->clear_screen = clear_screen;
     }
 }
 
-struct Box *raster_api_get_box(struct Box *boxes, uint16_t num, uint16_t id) {
+void raster_api_set_interface(struct RasterHandler *hras, struct RasterBox *interface, uint16_t size) {
+    if (hras) {
+        hras->interface = interface;
+        hras->size = size;
+    }
+}
+
+void raster_api_render(struct RasterHandler *hras, struct RasterBox *text_boxes, uint16_t num) {
+    // Do not clear full screen for max optimization (less time spent)
+    if (PARTIAL_RASTER == 0)
+        hras->clear_screen();
+
+    for (int i = 0; i < num; i++) {
+        prv_draw_text_box(text_boxes + i, hras->draw_rectangle, hras->draw_line);
+    }
+}
+
+struct RasterBox *raster_api_get_box(struct RasterBox *boxes, uint16_t num, uint16_t id) {
     // Loops and search for IDs (can be good for CAN IDs)
     for (int i = 0; i < num; i++) {
         if ((boxes + i)->id == id) {
@@ -95,7 +112,7 @@ struct Box *raster_api_get_box(struct Box *boxes, uint16_t num, uint16_t id) {
     return NULL;
 }
 
-void raster_api_create_label(struct Label *label, union LabelData data, enum LabelDataType type, struct Coords pos, enum FontName font, uint16_t size, enum FontAlign align, struct Color color) {
+void raster_api_create_label(struct RasterLabel *label, union RasterLabelData data, enum RasterLabelDataType type, struct RasterCoords pos, enum FontName font, uint16_t size, enum FontAlign align, struct Color color) {
     if (label) {
         label->data = data;
         label->type = type;
@@ -107,7 +124,7 @@ void raster_api_create_label(struct Label *label, union LabelData data, enum Lab
     }
 }
 
-void raster_api_set_label_data(struct Box *box, union LabelData data, enum LabelDataType type) {
+void raster_api_set_label_data(struct RasterBox *box, union RasterLabelData data, enum RasterLabelDataType type) {
     if (box && box->label) {
         box->label->data = data;
         box->label->type = type;

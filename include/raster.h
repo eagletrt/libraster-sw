@@ -16,7 +16,7 @@
 /**
  * \brief Represents a rectangle area
  */
-struct Rect {
+struct RasterRect {
     uint16_t x; /*!< X position of the rectangle */
     uint16_t y; /*!< Y position of the rectangle */
     uint16_t w; /*!< Width of the rectangle */
@@ -26,7 +26,7 @@ struct Rect {
 /*!
  * \brief Represents a pair of coordinates
  */
-struct Coords {
+struct RasterCoords {
     uint16_t x; /*!< X position in pixels */
     uint16_t y; /*!< Y position in pixels */
 };
@@ -34,7 +34,7 @@ struct Coords {
 /*!
  * \brief Union to hold different types of label values
  */
-union LabelData {
+union RasterLabelData {
     char *text;      /*!< Text to display */
     int32_t int_val; /*!< Integer value to display */
     float float_val; /*!< Float value to display */
@@ -43,7 +43,7 @@ union LabelData {
 /*!
  * \brief Defines the coloring method to use
  */
-enum LabelDataType {
+enum RasterLabelDataType {
     LABEL_DATA_STRING,  /*!< Text value type */
     LABEL_DATA_INT,     /*!< Integer value type */
     LABEL_DATA_FLOAT_1, /*!< Float value type with 1 decimal */
@@ -74,27 +74,39 @@ typedef void (*clear_screen_callback)(void);
 /*!
  * \brief Defines a label to be drawn on screen
  */
-struct Label {
-    union LabelData data;    /*!< Content of the label */
-    enum LabelDataType type; /*!< Type of the label content */
-    struct Coords pos;       /*!< Position to draw the label */
-    enum FontName font;      /*!< Font name, defined in font.h */
-    uint16_t size;           /*!< Size of the text */
-    enum FontAlign align;    /*!< Alignement of the text relative to coords */
-    struct Color color;      /*!< Color of the text */
+struct RasterLabel {
+    union RasterLabelData data;    /*!< Content of the label */
+    enum RasterLabelDataType type; /*!< Type of the label content */
+    struct RasterCoords pos;       /*!< Position to draw the label */
+    enum FontName font;            /*!< Font name, defined in font.h */
+    uint16_t size;                 /*!< Size of the text */
+    enum FontAlign align;          /*!< Alignement of the text relative to coords */
+    struct Color color;            /*!< Color of the text */
 };
 
 /*!
  * \brief Defines a text box to be drawn on screen
  */
-struct Box {
+struct RasterBox {
 #if PARTIAL_RASTER
     bool updated; /*!< Flag to indicate if the box needs to be redrawn */
 #endif
-    uint16_t id;         /*!< Unique identifier for the box */
-    struct Rect rect;    /*!< Rectangle area of the box */
-    struct Color color;  /*!< Default background color of the box (ARGB format) */
-    struct Label *label; /*!< Pointer to a Label structure (can be NULL) */
+    uint16_t id;               /*!< Unique identifier for the box */
+    struct RasterRect rect;    /*!< Rectangle area of the box */
+    struct Color color;        /*!< Default background color of the box (ARGB format) */
+    struct RasterLabel *label; /*!< Pointer to a Label structure (can be NULL) */
+};
+
+/*!
+ * \brief Handler for raster operations
+ */
+struct RasterHandler {
+    struct RasterBox *interface; /*!< Pointer to an array of RasterBox structures */
+    uint16_t size;               /*!< Number of boxes in the interface array */
+
+    draw_line_callback draw_line;           /*!< Callback to draw a horizontal line */
+    draw_rectangle_callback draw_rectangle; /*!< Callback to draw a filled rectangle */
+    clear_screen_callback clear_screen;     /*!< Callback to clear the screen */
 };
 
 #endif // RASTER_H

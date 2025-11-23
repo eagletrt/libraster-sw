@@ -18,6 +18,35 @@
 #include "raster.h"
 
 /*!
+ * \brief Initializes the RasterHandler struct
+ *
+ * \details Sets the callbacks inside the RasterHandler struct
+ *     passed as argument.
+ *     Clear screen callback is optional, and can be set to NULL when PARTIAL_RASTER
+ *     is equal to 1.
+ *
+ * \param[out] hras Pointer to the RasterHandler struct to initialize
+ * \param[in] interface Pointer to the defined interface
+ * \param[in] size Number of boxes in the interface
+ * \param[in] draw_line Draw line callback
+ * \param[in] draw_rectangle Draw rectangle callback
+ * \param[in] clear_screen Clear screen callback
+ */
+void raster_api_init(struct RasterHandler *hras, struct RasterBox *interface, uint16_t size, draw_line_callback draw_line, draw_rectangle_callback draw_rectangle, clear_screen_callback clear_screen);
+
+/*!
+ * \brief Sets the interface inside the RasterHandler struct
+ *
+ * \details Sets the interface and size inside the RasterHandler struct
+ *     passed as argument.
+ *
+ * \param[out] hras Pointer to the RasterHandler struct to modify
+ * \param[in] interface Pointer to the defined interface
+ * \param[in] size Number of boxes in the interface
+ */
+void raster_api_set_interface(struct RasterHandler *hras, struct RasterBox *interface, uint16_t size);
+
+/*!
  * \brief Renders the whole interface
  *
  * \details For every box, draws it using the callbacks that are passed
@@ -26,13 +55,11 @@
  *      The signature of the function changes based on the \c PARTIAL_RASTER
  *      env variable, adding or removing the \c clear_screen callback.
  *
+ * \param[in] hras Pointer to the RasterHandler struct to use
  * \param[in] boxes Pointer to the defined interface
  * \param[in] num Number of boxes in the interface
- * \param[in] draw_line Draw line callback
- * \param[in] draw_rectangle Draw rectangle callback
- * \param[in] clear_screen Clear screen callback
  */
-void raster_api_render(struct Box *boxes, uint16_t num, draw_line_callback draw_line, draw_rectangle_callback draw_rectangle, clear_screen_callback clear_screen);
+void raster_api_render(struct RasterHandler *hras, struct RasterBox *boxes, uint16_t num);
 
 /*!
  * \brief Utility to get a Box based on id value
@@ -47,19 +74,21 @@ void raster_api_render(struct Box *boxes, uint16_t num, draw_line_callback draw_
  *     - Box pointer if found
  *     - NULL if not found
  */
-struct Box *raster_api_get_box(struct Box *boxes, uint16_t num, uint16_t id);
+struct RasterBox *raster_api_get_box(struct RasterBox *boxes, uint16_t num, uint16_t id);
 
 /*!
  * \brief Utility to populate struct Label
  *
  * \param[out] label The label struct to populate
  * \param[in] value Union of possible value types
+ * \param[in] type Type of the value passed
  * \param[in] pos Position of the text
  * \param[in] font Font name (defined in generation)
- * \param[in] font_size Text size
+ * \param[in] size Text size
  * \param[in] align Alignment of font
+ * \param[in] color Color of the text
  */
-void raster_api_create_label(struct Label *label, union LabelData value, enum LabelDataType type, struct Coords pos, enum FontName font, uint16_t size, enum FontAlign align, struct Color color);
+void raster_api_create_label(struct RasterLabel *label, union RasterLabelData value, enum RasterLabelDataType type, struct RasterCoords pos, enum FontName font, uint16_t size, enum FontAlign align, struct Color color);
 
 /*!
  * \brief Utility to set label data inside a Box
@@ -68,6 +97,6 @@ void raster_api_create_label(struct Label *label, union LabelData value, enum La
  * \param[in] value Union of possible value types
  * \param[in] type Type of the value passed
  */
-void raster_api_set_label_data(struct Box *box, union LabelData value, enum LabelDataType type);
+void raster_api_set_label_data(struct RasterBox *box, union RasterLabelData value, enum RasterLabelDataType type);
 
 #endif // RASTER_API_H
