@@ -92,13 +92,13 @@ void raster_api_set_interface(struct RasterHandler *hras, struct RasterBox *inte
     }
 }
 
-void raster_api_render(struct RasterHandler *hras, struct RasterBox *text_boxes, uint16_t num) {
+void raster_api_render(struct RasterHandler *hras) {
     // Do not clear full screen for max optimization (less time spent)
     if (PARTIAL_RASTER == 0)
         hras->clear_screen();
 
-    for (int i = 0; i < num; i++) {
-        prv_draw_text_box(text_boxes + i, hras->draw_rectangle, hras->draw_line);
+    for (int i = 0; i < hras->size; i++) {
+        prv_draw_text_box(&hras->interface[i], hras->draw_rectangle, hras->draw_line);
     }
 }
 

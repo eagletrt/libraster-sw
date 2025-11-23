@@ -59,7 +59,7 @@ void raster_api_set_interface(struct RasterHandler *hras, struct RasterBox *inte
  * \param[in] boxes Pointer to the defined interface
  * \param[in] num Number of boxes in the interface
  */
-void raster_api_render(struct RasterHandler *hras, struct RasterBox *boxes, uint16_t num);
+void raster_api_render(struct RasterHandler *hras);
 
 /*!
  * \brief Utility to get a Box based on id value
