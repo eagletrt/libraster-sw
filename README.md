@@ -56,7 +56,7 @@ The idea is to let the user decide how things are done. This helps with performa
     You will still need to create the `fonts.json`, but after that everything is on you. You will decide how and when to call the generator. You can pass the path to `fonts.json` using the `--json` argument.
 
 ### Actual usage
-All you have to do is include `raster-api.h` in your program, create labels and boxes, then call the function `raster_api_render` with **your** callback functions to draw the interface.
+All you have to do is include `raster-api.h` in your program, create labels and boxes, then initialize a handler with the interface, and call the function `raster_api_render` with the handler.
 
 > [!IMPORTANT]
 > If you're using 2 buffers, you still have to swap them yourself.
@@ -85,25 +85,15 @@ void clear_screen_callback(void) {
 }
 ```
 
-#### Updating Label Data at Runtime
-
-You can update label data dynamically using `raster_api_set_label_data`:
-
-```c
-// Get a specific box by ID
-struct Box *speed_box = raster_api_get_box(boxes, 4, 0x2);
-
-// Update the value
-raster_api_set_label_data(speed_box, 
-    (union LabelData){ .int_val = 150 }, 
-    LABEL_DATA_INT);
-
-// Mark box as updated for partial rendering
-speed_box->updated = true;
-
-// Re-render
-raster_api_render(boxes, 4, draw_line_cb, draw_rectangle_cb, NULL);
-```
+#### Label Structure 
+Each label (`struct RasterLabel`) contains:
+- `data` - Union containing the actual data (string, int, float)
+- `type` - Type of data (see Label Data Types)
+- `pos` - Position of the label inside the box (x, y)
+- `font` - Enum defining the font to use
+- `size` - Font size
+- `align` - Text alignment (left, center, right)
+- `color` - Font color (`Color` structure)
 
 #### Label Data Types
 
@@ -116,7 +106,7 @@ The library supports the following label data types:
 
 #### Box Structure
 
-Each box contains:
+Each box (`struct RasterBox`) contains:
 - `updated` - Flag for partial rendering optimization (only if PARTIAL_RASTER is enabled)
 - `id` - Unique identifier for the box
 - `rect` - Rectangle dimensions (x, y, width, height)

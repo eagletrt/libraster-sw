@@ -20,16 +20,18 @@ void draw_rectangle_cb(uint16_t x, uint16_t y, uint16_t w, uint16_t h, struct Co
 }
 
 int main() {
-    struct Label l1;
-    raster_api_create_label(&l1, (union LabelData){ .text = "XD" }, LABEL_DATA_STRING, (struct Coords){ 0, 0 }, FONT_KONEXY, 10, FONT_ALIGN_CENTER, (struct Color){ .argb = 0xffffffff });
-    struct Label v1;
-    raster_api_create_label(&v1, (union LabelData){ .int_val = 51 }, LABEL_DATA_INT, (struct Coords){ 10, 0 }, FONT_KONEXY, 10, FONT_ALIGN_CENTER, (struct Color){ .argb = 0xffffffff });
+    struct RasterLabel l1;
+    raster_api_create_label(&l1, (union RasterLabelData){ .text = "XD" }, LABEL_DATA_STRING, (struct RasterCoords){ 0, 0 }, 0, 10, FONT_ALIGN_CENTER, (struct Color){ .argb = 0xffffffff });
+    struct RasterLabel v1;
+    raster_api_create_label(&v1, (union RasterLabelData){ .int_val = 51 }, LABEL_DATA_INT, (struct RasterCoords){ 10, 0 }, 0, 10, FONT_ALIGN_CENTER, (struct Color){ .argb = 0xffffffff });
 
-    struct Box boxes[] = {
+    struct RasterBox boxes[] = {
         { true, 0x1, { 2, 2, 397, 237 }, {.argb = 0xff000000}, &l1 },
         { true, 0x2, { 400, 2, 397, 237 }, {.argb = 0xff000000}, &v1 },
     };
 
-    raster_api_render(boxes, 2, draw_line_cb, draw_rectangle_cb, NULL);
+    struct RasterHandler handler;
+    raster_api_init(&handler, boxes, 2, draw_line_cb, draw_rectangle_cb, NULL);
+    raster_api_render(&handler);
     return 0;
 }
