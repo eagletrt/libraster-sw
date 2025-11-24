@@ -11,14 +11,15 @@
 
 #include "colors.h"
 #include <stdint.h>
-#include "fonts.h"
+
+// Include raster-config.h if it exists
 #ifdef __has_include
 #if __has_include("raster-config.h")
 #include "raster-config.h"
 #endif
 #endif
 
-#ifndef PARTIAL_RASTER
+#ifndef RASTER_PARTIAL
 /*!
  * \brief Enable partial raster rendering by default
  *
@@ -26,7 +27,7 @@
  *     already defined. Partial raster rendering allows for more efficient
  *     drawing of text by only updating the necessary parts of the screen.
  */
-#define PARTIAL_RASTER 1
+#define RASTER_PARTIAL (1)
 #endif
 
 /*!
@@ -42,7 +43,7 @@
  * \param[in] lenght Length of the line to draw
  * \param[in] color Color of the line (ARGB format)
  */
-typedef void (*draw_line_callback)(uint16_t x, uint16_t y, uint16_t lenght, struct Color color);
+typedef void (*font_draw_line_callback)(uint16_t x, uint16_t y, uint16_t lenght, struct Color color);
 
 /*!
  * \brief Represents the alignment of the rendering of the text

@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "fontutils.h"
+#include "fonts.h"
 
 /**
  * \brief Represents a rectangle area
@@ -62,14 +63,14 @@ enum RasterLabelDataType {
  * \param[in] h Height of the rectangle
  * \param[in] color Color of the rectangle, ARGB format
  */
-typedef void (*draw_rectangle_callback)(uint16_t x, uint16_t y, uint16_t w, uint16_t h, struct Color color);
+typedef void (*raster_draw_rectangle_callback)(uint16_t x, uint16_t y, uint16_t w, uint16_t h, struct Color color);
 
 /*!
  * \brief Function used to clear the screen
  * 
  * \details This callback function is used to clear the whole screen
  */
-typedef void (*clear_screen_callback)(void);
+typedef void (*raster_clear_screen_callback)(void);
 
 /*!
  * \brief Defines a label to be drawn on screen
@@ -88,9 +89,7 @@ struct RasterLabel {
  * \brief Defines a text box to be drawn on screen
  */
 struct RasterBox {
-#if PARTIAL_RASTER
-    bool updated; /*!< Flag to indicate if the box needs to be redrawn */
-#endif
+    bool updated;              /*!< Flag to indicate if the box needs to be redrawn */
     uint16_t id;               /*!< Unique identifier for the box */
     struct RasterRect rect;    /*!< Rectangle area of the box */
     struct Color color;        /*!< Default background color of the box (ARGB format) */
@@ -104,9 +103,9 @@ struct RasterHandler {
     struct RasterBox *interface; /*!< Pointer to an array of RasterBox structures */
     uint16_t size;               /*!< Number of boxes in the interface array */
 
-    draw_line_callback draw_line;           /*!< Callback to draw a horizontal line */
-    draw_rectangle_callback draw_rectangle; /*!< Callback to draw a filled rectangle */
-    clear_screen_callback clear_screen;     /*!< Callback to clear the screen */
+    font_draw_line_callback draw_line;             /*!< Callback to draw a horizontal line */
+    raster_draw_rectangle_callback draw_rectangle; /*!< Callback to draw a filled rectangle */
+    raster_clear_screen_callback clear_screen;     /*!< Callback to clear the screen */
 };
 
 #endif // RASTER_H

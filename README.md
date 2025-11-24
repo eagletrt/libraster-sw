@@ -78,10 +78,10 @@ void draw_rectangle_callback(uint16_t x, uint16_t y, uint16_t w, uint16_t h, str
     // This is called for box backgrounds
 }
 
-// Clear the entire screen (only used when PARTIAL_RASTER is disabled)
+// Clear the entire screen (only used when RASTER_PARTIAL is disabled)
 void clear_screen_callback(void) {
     // Your implementation here
-    // Only needed if PARTIAL_RASTER = 0
+    // Only needed if RASTER_PARTIAL = 0
 }
 ```
 
@@ -107,12 +107,12 @@ The library supports the following label data types:
 #### Box Structure
 
 Each box (`struct RasterBox`) contains:
-- `updated` - Flag for partial rendering optimization (only if PARTIAL_RASTER is enabled)
+- `updated` - Flag for partial rendering optimization (only if RASTER_PARTIAL is enabled)
 - `id` - Unique identifier for the box
 - `rect` - Rectangle dimensions (x, y, width, height)
 - `color` - Background color (ARGB format)
 - `label` - Pointer to label structure (optional, can be NULL)
 
 > [!TIP]
-> Create a file `raster_config.h` with the following defines to customize behaviour:
-> - `PARTIAL_RASTER` - Enable/disable partial rendering optimization (default = 1). When enabled, only boxes with `updated = true` will be redrawn.
+> Create a file `raster-config.h` with the following defines to customize behaviour:
+> - `RASTER_PARTIAL` - Enable/disable partial rendering optimization (default = 1). When enabled, only boxes with `updated = true` will be redrawn.

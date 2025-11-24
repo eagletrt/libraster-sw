@@ -16,6 +16,7 @@
 #define FONTUTILS_API_H
 
 #include "fontutils.h"
+#include "fonts.h"
 
 /*!
  * \brief Draws text
@@ -32,10 +33,10 @@
  * \param[in] size Of which size (vertically) the text is to be rendere
  * \param[in] line_callback Callback used to draw a line
  */
-void font_api_draw(uint16_t x, uint16_t y, enum FontAlign align, enum FontName font, const char *__restrict__ text, struct Color color, uint16_t size, draw_line_callback line_callback);
+void font_api_draw(uint16_t x, uint16_t y, enum FontAlign align, enum FontName font, const char *__restrict__ text, struct Color color, uint16_t size, font_draw_line_callback line_callback);
 
 /*!
- * \brief Calcaulate the length on the text in pixel
+ * \brief Calculate the length of the text in pixel
  *
  * \details Based on text, scaling and font calculates the length of the
  *      rendered text. This is useful to align horizontally the text.

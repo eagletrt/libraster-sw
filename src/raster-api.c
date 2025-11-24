@@ -20,6 +20,8 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
+#define MAX_BUFFER_SIZE (128)
+
 /*!
  * \brief Draws a text box with background, value, and label
  *
@@ -31,16 +33,14 @@
  * \param[in] draw_rectangle Callback function to draw rectangles
  * \param[in] line_callback Callback function to draw lines of text
  */
-void prv_draw_text_box(struct RasterBox *box, draw_rectangle_callback draw_rectangle, draw_line_callback line_callback) {
-#if PARTIAL_RASTER
-    if (!box->updated)
+void prv_draw_text_box(struct RasterBox *box, raster_draw_rectangle_callback draw_rectangle, font_draw_line_callback line_callback) {
+    if (RASTER_PARTIAL == 0 && !box->updated)
         return;
-#endif
     // Draw the basic rectangle
     draw_rectangle(box->rect.x, box->rect.y, box->rect.w, box->rect.h, box->color);
     if (box->label) {
         // Format the value accordingly to what we want
-        char buf[128];
+        char buf[MAX_BUFFER_SIZE];
         struct RasterLabel *label = box->label;
         switch (label->type) {
             case LABEL_DATA_INT:
@@ -75,26 +75,26 @@ void prv_draw_text_box(struct RasterBox *box, draw_rectangle_callback draw_recta
     }
 }
 
-void raster_api_init(struct RasterHandler *hras, struct RasterBox *interface, uint16_t size, draw_line_callback draw_line, draw_rectangle_callback draw_rectangle, clear_screen_callback clear_screen) {
-    if (hras) {
-        hras->interface = interface;
-        hras->size = size;
-        hras->draw_line = draw_line;
-        hras->draw_rectangle = draw_rectangle;
-        hras->clear_screen = clear_screen;
-    }
+void raster_api_init(struct RasterHandler *hras, struct RasterBox *interface, uint16_t size, font_draw_line_callback draw_line, raster_draw_rectangle_callback draw_rectangle, raster_clear_screen_callback clear_screen) {
+    if (hras == NULL)
+        return;
+    hras->interface = interface;
+    hras->size = size;
+    hras->draw_line = draw_line;
+    hras->draw_rectangle = draw_rectangle;
+    hras->clear_screen = clear_screen;
 }
 
 void raster_api_set_interface(struct RasterHandler *hras, struct RasterBox *interface, uint16_t size) {
-    if (hras) {
-        hras->interface = interface;
-        hras->size = size;
-    }
+    if (hras == NULL)
+        return;
+    hras->interface = interface;
+    hras->size = size;
 }
 
 void raster_api_render(struct RasterHandler *hras) {
     // Do not clear full screen for max optimization (less time spent)
-    if (PARTIAL_RASTER == 0)
+    if (RASTER_PARTIAL == 0)
         hras->clear_screen();
 
     for (int i = 0; i < hras->size; i++) {
@@ -105,7 +105,8 @@ void raster_api_render(struct RasterHandler *hras) {
 struct RasterBox *raster_api_get_box(struct RasterBox *boxes, uint16_t num, uint16_t id) {
     // Loops and search for IDs (can be good for CAN IDs)
     for (int i = 0; i < num; i++) {
-        if ((boxes + i)->id == id) {
+        struct RasterBox *box = boxes + i;
+        if (box->id == id) {
             return (boxes + i);
         }
     }
@@ -113,20 +114,20 @@ struct RasterBox *raster_api_get_box(struct RasterBox *boxes, uint16_t num, uint
 }
 
 void raster_api_create_label(struct RasterLabel *label, union RasterLabelData data, enum RasterLabelDataType type, struct RasterCoords pos, enum FontName font, uint16_t size, enum FontAlign align, struct Color color) {
-    if (label) {
-        label->data = data;
-        label->type = type;
-        label->pos = pos;
-        label->font = font;
-        label->size = size;
-        label->align = align;
-        label->color = color;
-    }
+    if (label == NULL)
+        return;
+    label->data = data;
+    label->type = type;
+    label->pos = pos;
+    label->font = font;
+    label->size = size;
+    label->align = align;
+    label->color = color;
 }
 
 void raster_api_set_label_data(struct RasterBox *box, union RasterLabelData data, enum RasterLabelDataType type) {
-    if (box && box->label) {
-        box->label->data = data;
-        box->label->type = type;
-    }
+    if (box == NULL || box->label == NULL)
+        return;
+    box->label->data = data;
+    box->label->type = type;
 }

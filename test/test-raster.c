@@ -73,8 +73,8 @@ void check_label_float_1_decimal() {
                             FONT_ALIGN_LEFT,
                             (struct Color){ .argb = 0xFF00FF00 });
 
-    TEST_ASSERT_EQUAL_FLOAT(3.14159f, l.data.float_val);
-    TEST_ASSERT_EQUAL(LABEL_DATA_FLOAT_1, l.type);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(3.14159f, l.data.float_val, "Float value does not match");
+    TEST_ASSERT_EQUAL_MESSAGE(LABEL_DATA_FLOAT_1, l.type, "Label type does not match");
 }
 
 void check_label_float_2_decimals() {
@@ -88,8 +88,8 @@ void check_label_float_2_decimals() {
                             FONT_ALIGN_RIGHT,
                             (struct Color){ .argb = 0xFFFF0000 });
 
-    TEST_ASSERT_EQUAL_FLOAT(23.456f, l.data.float_val);
-    TEST_ASSERT_EQUAL(LABEL_DATA_FLOAT_2, l.type);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(23.456f, l.data.float_val, "Float value does not match");
+    TEST_ASSERT_EQUAL_MESSAGE(LABEL_DATA_FLOAT_2, l.type, "Label type does not match");
 }
 
 void check_label_float_3_decimals() {
@@ -103,8 +103,8 @@ void check_label_float_3_decimals() {
                             FONT_ALIGN_CENTER,
                             (struct Color){ .argb = 0xFF0000FF });
 
-    TEST_ASSERT_EQUAL_FLOAT(98.765f, l.data.float_val);
-    TEST_ASSERT_EQUAL(LABEL_DATA_FLOAT_3, l.type);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(98.765f, l.data.float_val, "Float value does not match");
+    TEST_ASSERT_EQUAL_MESSAGE(LABEL_DATA_FLOAT_3, l.type, "Label type does not match");
 }
 
 void check_label_string_type() {
@@ -119,8 +119,8 @@ void check_label_string_type() {
                             FONT_ALIGN_CENTER,
                             (struct Color){ .argb = 0xFFFFFFFF });
 
-    TEST_ASSERT_EQUAL_STRING(test_str, l.data.text);
-    TEST_ASSERT_EQUAL(LABEL_DATA_STRING, l.type);
+    TEST_ASSERT_EQUAL_STRING_MESSAGE(test_str, l.data.text, "String value does not match");
+    TEST_ASSERT_EQUAL_MESSAGE(LABEL_DATA_STRING, l.type, "Label type does not match");
 }
 
 void check_get_box_with_multiple_boxes() {
@@ -132,13 +132,13 @@ void check_get_box_with_multiple_boxes() {
     };
 
     struct RasterBox *b2 = raster_api_get_box(boxes, 4, 0x2);
-    TEST_ASSERT_NOT_NULL(b2);
-    TEST_ASSERT_EQUAL_UINT16(0x2, b2->id);
-    TEST_ASSERT_EQUAL_UINT16(120, b2->rect.x);
+    TEST_ASSERT_NOT_NULL_MESSAGE(b2, "Box with ID 0x2 should be found");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(0x2, b2->id, "Box ID does not match");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(120, b2->rect.x, "Box X coordinate does not match");
 
     struct RasterBox *b4 = raster_api_get_box(boxes, 4, 0x4);
-    TEST_ASSERT_NOT_NULL(b4);
-    TEST_ASSERT_EQUAL_UINT16(0x4, b4->id);
+    TEST_ASSERT_NOT_NULL_MESSAGE(b4, "Box with ID 0x4 should be found");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(0x4, b4->id, "Box ID does not match");
 }
 
 void check_get_box_first_element() {
@@ -148,8 +148,8 @@ void check_get_box_first_element() {
     };
 
     struct RasterBox *b = raster_api_get_box(boxes, 2, 0x10);
-    TEST_ASSERT_NOT_NULL(b);
-    TEST_ASSERT_EQUAL_UINT16(0x10, b->id);
+    TEST_ASSERT_NOT_NULL_MESSAGE(b, "Box with ID 0x10 should be found");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(0x10, b->id, "Box ID does not match");
 }
 
 void check_get_box_last_element() {
@@ -160,8 +160,8 @@ void check_get_box_last_element() {
     };
 
     struct RasterBox *b = raster_api_get_box(boxes, 3, 0x30);
-    TEST_ASSERT_NOT_NULL(b);
-    TEST_ASSERT_EQUAL_UINT16(0x30, b->id);
+    TEST_ASSERT_NOT_NULL_MESSAGE(b, "Box with ID 0x30 should be found");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(0x30, b->id, "Box ID does not match");
 }
 
 void check_set_label_data_float() {
@@ -179,8 +179,8 @@ void check_set_label_data_float() {
 
     raster_api_set_label_data(&box, (union RasterLabelData){ .float_val = 99.99f }, LABEL_DATA_FLOAT_2);
 
-    TEST_ASSERT_EQUAL_FLOAT(99.99f, box.label->data.float_val);
-    TEST_ASSERT_EQUAL(LABEL_DATA_FLOAT_2, box.label->type);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(99.99f, box.label->data.float_val, "Float value was not updated correctly");
+    TEST_ASSERT_EQUAL_MESSAGE(LABEL_DATA_FLOAT_2, box.label->type, "Label type was not updated correctly");
 }
 
 void check_set_label_data_string() {
@@ -199,8 +199,8 @@ void check_set_label_data_string() {
     const char *new_text = "New";
     raster_api_set_label_data(&box, (union RasterLabelData){ .text = (char *)new_text }, LABEL_DATA_STRING);
 
-    TEST_ASSERT_EQUAL_STRING(new_text, box.label->data.text);
-    TEST_ASSERT_EQUAL(LABEL_DATA_STRING, box.label->type);
+    TEST_ASSERT_EQUAL_STRING_MESSAGE(new_text, box.label->data.text, "String value was not updated correctly");
+    TEST_ASSERT_EQUAL_MESSAGE(LABEL_DATA_STRING, box.label->type, "Label type was not updated correctly");
 }
 
 void check_set_label_data_null_box() {
@@ -220,9 +220,9 @@ void check_box_with_label_properties() {
                             FONT_ALIGN_LEFT,
                             (struct Color){ .argb = 0xFFABCDEF });
 
-    TEST_ASSERT_EQUAL_UINT16(25, l.pos.x);
-    TEST_ASSERT_EQUAL_UINT16(30, l.pos.y);
-    TEST_ASSERT_EQUAL_UINT16(50, l.size);
-    TEST_ASSERT_EQUAL(FONT_ALIGN_LEFT, l.align);
-    TEST_ASSERT_EQUAL_UINT32(0xFFABCDEF, l.color.argb);
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(25, l.pos.x, "Label X position does not match");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(30, l.pos.y, "Label Y position does not match");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(50, l.size, "Label size does not match");
+    TEST_ASSERT_EQUAL_MESSAGE(FONT_ALIGN_LEFT, l.align, "Label alignment does not match");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(0xFFABCDEF, l.color.argb, "Label color does not match");
 }

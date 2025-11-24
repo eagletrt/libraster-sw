@@ -22,7 +22,7 @@
  *
  * \details Sets the callbacks inside the RasterHandler struct
  *     passed as argument.
- *     Clear screen callback is optional, and can be set to NULL when PARTIAL_RASTER
+ *     Clear screen callback is optional, and can be set to NULL when RASTER_PARTIAL
  *     is equal to 1.
  *
  * \param[out] hras Pointer to the RasterHandler struct to initialize
@@ -32,7 +32,7 @@
  * \param[in] draw_rectangle Draw rectangle callback
  * \param[in] clear_screen Clear screen callback
  */
-void raster_api_init(struct RasterHandler *hras, struct RasterBox *interface, uint16_t size, draw_line_callback draw_line, draw_rectangle_callback draw_rectangle, clear_screen_callback clear_screen);
+void raster_api_init(struct RasterHandler *hras, struct RasterBox *interface, uint16_t size, font_draw_line_callback draw_line, raster_draw_rectangle_callback draw_rectangle, raster_clear_screen_callback clear_screen);
 
 /*!
  * \brief Sets the interface inside the RasterHandler struct
@@ -52,7 +52,7 @@ void raster_api_set_interface(struct RasterHandler *hras, struct RasterBox *inte
  * \details For every box, draws it using the callbacks that are passed
  *      as arguments to the function.
  *
- *      The signature of the function changes based on the \c PARTIAL_RASTER
+ *      The signature of the function changes based on the \c RASTER_PARTIAL
  *      env variable, adding or removing the \c clear_screen callback.
  *
  * \param[in] hras Pointer to the RasterHandler struct to use
