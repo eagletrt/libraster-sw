@@ -35,6 +35,7 @@ void check_label_building() {
     raster_api_create_label(&l,
                             (union RasterLabelData){ .text = "Hello, World" },
                             LABEL_DATA_STRING,
+                            (union RasterLabelFormat){ .string_fmt = raster_api_string_format(0) },
                             (struct RasterCoords){ 1, 1 },
                             0,
                             15,
@@ -49,6 +50,7 @@ void check_label_data_update() {
     raster_api_create_label(&l,
                             (union RasterLabelData){ .int_val = 42 },
                             LABEL_DATA_INT,
+                            (union RasterLabelFormat){ .int_fmt = raster_api_int_format(false) },
                             (struct RasterCoords){ 1, 1 },
                             0,
                             15,
@@ -57,7 +59,7 @@ void check_label_data_update() {
 
     struct RasterBox box = { true, 0x1, { 1, 1, 1, 1 }, { .argb = 0xFF000000 }, &l };
 
-    raster_api_set_label_data(&box, (union RasterLabelData){ .int_val = 100 }, LABEL_DATA_INT);
+    raster_api_set_label_data(&box, (union RasterLabelData){ .int_val = 100 });
 
     TEST_ASSERT_EQUAL_INT32(100, box.label->data.int_val);
 }
@@ -66,7 +68,8 @@ void check_label_float_1_decimal() {
     struct RasterLabel l;
     raster_api_create_label(&l,
                             (union RasterLabelData){ .float_val = 3.14159f },
-                            LABEL_DATA_FLOAT_1,
+                            LABEL_DATA_FLOAT,
+                            (union RasterLabelFormat){ .float_fmt = raster_api_float_format(1) },
                             (struct RasterCoords){ 10, 20 },
                             0,
                             20,
@@ -74,14 +77,16 @@ void check_label_float_1_decimal() {
                             (struct Color){ .argb = 0xFF00FF00 });
 
     TEST_ASSERT_EQUAL_FLOAT_MESSAGE(3.14159f, l.data.float_val, "Float value does not match");
-    TEST_ASSERT_EQUAL_MESSAGE(LABEL_DATA_FLOAT_1, l.type, "Label type does not match");
+    TEST_ASSERT_EQUAL_MESSAGE(LABEL_DATA_FLOAT, l.type, "Label type does not match");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1, l.format.float_fmt.precision, "Float precision does not match");
 }
 
 void check_label_float_2_decimals() {
     struct RasterLabel l;
     raster_api_create_label(&l,
                             (union RasterLabelData){ .float_val = 23.456f },
-                            LABEL_DATA_FLOAT_2,
+                            LABEL_DATA_FLOAT,
+                            (union RasterLabelFormat){ .float_fmt = raster_api_float_format(2) },
                             (struct RasterCoords){ 10, 20 },
                             0,
                             25,
@@ -89,14 +94,16 @@ void check_label_float_2_decimals() {
                             (struct Color){ .argb = 0xFFFF0000 });
 
     TEST_ASSERT_EQUAL_FLOAT_MESSAGE(23.456f, l.data.float_val, "Float value does not match");
-    TEST_ASSERT_EQUAL_MESSAGE(LABEL_DATA_FLOAT_2, l.type, "Label type does not match");
+    TEST_ASSERT_EQUAL_MESSAGE(LABEL_DATA_FLOAT, l.type, "Label type does not match");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2, l.format.float_fmt.precision, "Float precision does not match");
 }
 
 void check_label_float_3_decimals() {
     struct RasterLabel l;
     raster_api_create_label(&l,
                             (union RasterLabelData){ .float_val = 98.765f },
-                            LABEL_DATA_FLOAT_3,
+                            LABEL_DATA_FLOAT,
+                            (union RasterLabelFormat){ .float_fmt = raster_api_float_format(3) },
                             (struct RasterCoords){ 30, 40 },
                             0,
                             30,
@@ -104,7 +111,8 @@ void check_label_float_3_decimals() {
                             (struct Color){ .argb = 0xFF0000FF });
 
     TEST_ASSERT_EQUAL_FLOAT_MESSAGE(98.765f, l.data.float_val, "Float value does not match");
-    TEST_ASSERT_EQUAL_MESSAGE(LABEL_DATA_FLOAT_3, l.type, "Label type does not match");
+    TEST_ASSERT_EQUAL_MESSAGE(LABEL_DATA_FLOAT, l.type, "Label type does not match");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(3, l.format.float_fmt.precision, "Float precision does not match");
 }
 
 void check_label_string_type() {
@@ -113,6 +121,7 @@ void check_label_string_type() {
     raster_api_create_label(&l,
                             (union RasterLabelData){ .text = (char *)test_str },
                             LABEL_DATA_STRING,
+                            (union RasterLabelFormat){ .string_fmt = raster_api_string_format(0) },
                             (struct RasterCoords){ 5, 5 },
                             0,
                             40,
@@ -168,7 +177,8 @@ void check_set_label_data_float() {
     struct RasterLabel l;
     raster_api_create_label(&l,
                             (union RasterLabelData){ .float_val = 1.0f },
-                            LABEL_DATA_FLOAT_2,
+                            LABEL_DATA_FLOAT,
+                            (union RasterLabelFormat){ .float_fmt = raster_api_float_format(2) },
                             (struct RasterCoords){ 0, 0 },
                             0,
                             10,
@@ -177,10 +187,9 @@ void check_set_label_data_float() {
 
     struct RasterBox box = { true, 0x1, { 0, 0, 100, 100 }, { .argb = 0xFF000000 }, &l };
 
-    raster_api_set_label_data(&box, (union RasterLabelData){ .float_val = 99.99f }, LABEL_DATA_FLOAT_2);
+    raster_api_set_label_data(&box, (union RasterLabelData){ .float_val = 99.99f });
 
     TEST_ASSERT_EQUAL_FLOAT_MESSAGE(99.99f, box.label->data.float_val, "Float value was not updated correctly");
-    TEST_ASSERT_EQUAL_MESSAGE(LABEL_DATA_FLOAT_2, box.label->type, "Label type was not updated correctly");
 }
 
 void check_set_label_data_string() {
@@ -188,6 +197,7 @@ void check_set_label_data_string() {
     raster_api_create_label(&l,
                             (union RasterLabelData){ .text = "Old" },
                             LABEL_DATA_STRING,
+                            (union RasterLabelFormat){ .string_fmt = raster_api_string_format(0) },
                             (struct RasterCoords){ 0, 0 },
                             0,
                             10,
@@ -197,15 +207,14 @@ void check_set_label_data_string() {
     struct RasterBox box = { true, 0x1, { 0, 0, 100, 100 }, { .argb = 0xFF000000 }, &l };
 
     const char *new_text = "New";
-    raster_api_set_label_data(&box, (union RasterLabelData){ .text = (char *)new_text }, LABEL_DATA_STRING);
+    raster_api_set_label_data(&box, (union RasterLabelData){ .text = (char *)new_text });
 
     TEST_ASSERT_EQUAL_STRING_MESSAGE(new_text, box.label->data.text, "String value was not updated correctly");
-    TEST_ASSERT_EQUAL_MESSAGE(LABEL_DATA_STRING, box.label->type, "Label type was not updated correctly");
 }
 
 void check_set_label_data_null_box() {
     // This should not crash
-    raster_api_set_label_data(NULL, (union RasterLabelData){ .int_val = 100 }, LABEL_DATA_INT);
+    raster_api_set_label_data(NULL, (union RasterLabelData){ .int_val = 100 });
     TEST_ASSERT_TRUE(true); // If we reach here, it didn't crash
 }
 
@@ -214,6 +223,7 @@ void check_box_with_label_properties() {
     raster_api_create_label(&l,
                             (union RasterLabelData){ .int_val = 42 },
                             LABEL_DATA_INT,
+                            (union RasterLabelFormat){ .int_fmt = raster_api_int_format(false) },
                             (struct RasterCoords){ 25, 30 },
                             0,
                             50,

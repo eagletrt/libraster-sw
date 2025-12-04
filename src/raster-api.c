@@ -23,6 +23,62 @@
 #define MAX_BUFFER_SIZE (128)
 
 /*!
+ * \brief Internal function to format label data into a string buffer
+ *
+ * \details Formats the label data according to its type and formatting options
+ *
+ * \param[in] label Pointer to the RasterLabel structure
+ * \param[out] buffer Buffer to store the formatted string
+ * \param[in] buffer_size Size of the buffer
+ */
+static void prv_format_label_data(const struct RasterLabel *label, char *buffer, size_t buffer_size) {
+    if (!label || !buffer || buffer_size == 0) {
+        if (buffer && buffer_size > 0) {
+            buffer[0] = '\0';
+        }
+        return;
+    }
+
+    switch (label->type) {
+        case LABEL_DATA_INT: {
+            const struct RasterIntFormat *fmt = &label->format.int_fmt;
+            if (fmt->is_unsigned) {
+                snprintf(buffer, buffer_size, "%" PRIu32, (uint32_t)label->data.int_val);
+            } else {
+                snprintf(buffer, buffer_size, "%" PRId32, label->data.int_val);
+            }
+            break;
+        }
+
+        case LABEL_DATA_FLOAT: {
+            const struct RasterFloatFormat *fmt = &label->format.float_fmt;
+            char format_str[16];
+            snprintf(format_str, sizeof(format_str), "%%.%df", fmt->precision);
+            snprintf(buffer, buffer_size, format_str, label->data.float_val);
+            break;
+        }
+
+        case LABEL_DATA_STRING: {
+            const struct RasterStringFormat *fmt = &label->format.string_fmt;
+            if (label->data.text == NULL) {
+                buffer[0] = '\0';
+            } else if (fmt->max_length > 0 && fmt->max_length < buffer_size) {
+                strncpy(buffer, label->data.text, fmt->max_length);
+                buffer[fmt->max_length] = '\0';
+            } else {
+                strncpy(buffer, label->data.text, buffer_size - 1);
+                buffer[buffer_size - 1] = '\0';
+            }
+            break;
+        }
+
+        default:
+            buffer[0] = '\0';
+            break;
+    }
+}
+
+/*!
  * \brief Draws a text box with background, value, and label
  *
  * \details This function draws a text box on the screen using the provided
@@ -38,41 +94,22 @@ void prv_draw_text_box(struct RasterBox *box, raster_draw_rectangle_callback dra
         return;
     // Draw the basic rectangle
     draw_rectangle(box->rect.x, box->rect.y, box->rect.w, box->rect.h, box->color);
-    if (box->label) {
-        // Format the value accordingly to what we want
-        char buf[MAX_BUFFER_SIZE];
-        struct RasterLabel *label = box->label;
-        switch (label->type) {
-            case LABEL_DATA_INT:
-                snprintf(buf, sizeof(buf), "%" PRId32, label->data.int_val);
-                break;
-            case LABEL_DATA_FLOAT_1:
-                snprintf(buf, sizeof(buf), "%.1f", label->data.float_val);
-                break;
-            case LABEL_DATA_FLOAT_2:
-                snprintf(buf, sizeof(buf), "%.2f", label->data.float_val);
-                break;
-            case LABEL_DATA_FLOAT_3:
-                snprintf(buf, sizeof(buf), "%.3f", label->data.float_val);
-                break;
-            case LABEL_DATA_STRING:
-                strncpy(buf, label->data.text, sizeof(buf));
-                buf[sizeof(buf) - 1] = '\0';
-                break;
-            default:
-                buf[0] = '\0';
-                break;
-        }
-        // Plot the value
-        font_api_draw(box->rect.x + label->pos.x,
-                      box->rect.y + label->pos.y,
-                      label->align,
-                      label->font,
-                      buf,
-                      label->color,
-                      label->size,
-                      line_callback);
-    }
+    if (box->label == NULL)
+        return;
+
+    // Format the value using the internal formatting function
+    char buf[MAX_BUFFER_SIZE];
+    prv_format_label_data(box->label, buf, sizeof(buf));
+
+    // Plot the value
+    font_api_draw(box->rect.x + box->label->pos.x,
+                  box->rect.y + box->label->pos.y,
+                  box->label->align,
+                  box->label->font,
+                  buf,
+                  box->label->color,
+                  box->label->size,
+                  line_callback);
 }
 
 void raster_api_init(struct RasterHandler *hras, struct RasterBox *interface, uint16_t size, font_draw_line_callback draw_line, raster_draw_rectangle_callback draw_rectangle, raster_clear_screen_callback clear_screen) {
@@ -113,11 +150,12 @@ struct RasterBox *raster_api_get_box(struct RasterBox *boxes, uint16_t num, uint
     return NULL;
 }
 
-void raster_api_create_label(struct RasterLabel *label, union RasterLabelData data, enum RasterLabelDataType type, struct RasterCoords pos, enum FontName font, uint16_t size, enum FontAlign align, struct Color color) {
+void raster_api_create_label(struct RasterLabel *label, union RasterLabelData data, enum RasterLabelDataType type, union RasterLabelFormat format, struct RasterCoords pos, enum FontName font, uint16_t size, enum FontAlign align, struct Color color) {
     if (label == NULL)
         return;
     label->data = data;
     label->type = type;
+    label->format = format;
     label->pos = pos;
     label->font = font;
     label->size = size;
@@ -125,9 +163,35 @@ void raster_api_create_label(struct RasterLabel *label, union RasterLabelData da
     label->color = color;
 }
 
-void raster_api_set_label_data(struct RasterBox *box, union RasterLabelData data, enum RasterLabelDataType type) {
+void raster_api_set_label_data(struct RasterBox *box, union RasterLabelData data) {
     if (box == NULL || box->label == NULL)
         return;
     box->label->data = data;
-    box->label->type = type;
+}
+
+void raster_api_set_label_format(struct RasterBox *box, union RasterLabelFormat format) {
+    if (box == NULL || box->label == NULL)
+        return;
+    box->label->format = format;
+}
+
+struct RasterIntFormat raster_api_int_format(bool is_unsigned) {
+    struct RasterIntFormat fmt = {
+        .is_unsigned = is_unsigned
+    };
+    return fmt;
+}
+
+struct RasterFloatFormat raster_api_float_format(uint8_t precision) {
+    struct RasterFloatFormat fmt = {
+        .precision = precision
+    };
+    return fmt;
+}
+
+struct RasterStringFormat raster_api_string_format(uint16_t max_length) {
+    struct RasterStringFormat fmt = {
+        .max_length = max_length
+    };
+    return fmt;
 }

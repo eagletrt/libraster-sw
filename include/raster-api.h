@@ -82,21 +82,53 @@ struct RasterBox *raster_api_get_box(struct RasterBox *boxes, uint16_t num, uint
  * \param[out] label The label struct to populate
  * \param[in] value Union of possible value types
  * \param[in] type Type of the value passed
+ * \param[in] format Formatting options for the value
  * \param[in] pos Position of the text
  * \param[in] font Font name (defined in generation)
  * \param[in] size Text size
  * \param[in] align Alignment of font
  * \param[in] color Color of the text
  */
-void raster_api_create_label(struct RasterLabel *label, union RasterLabelData value, enum RasterLabelDataType type, struct RasterCoords pos, enum FontName font, uint16_t size, enum FontAlign align, struct Color color);
+void raster_api_create_label(struct RasterLabel *label, union RasterLabelData value, enum RasterLabelDataType type, union RasterLabelFormat format, struct RasterCoords pos, enum FontName font, uint16_t size, enum FontAlign align, struct Color color);
 
 /*!
  * \brief Utility to set label data inside a Box
  *
  * \param[in,out] box The box to modify
  * \param[in] value Union of possible value types
- * \param[in] type Type of the value passed
  */
-void raster_api_set_label_data(struct RasterBox *box, union RasterLabelData value, enum RasterLabelDataType type);
+void raster_api_set_label_data(struct RasterBox *box, union RasterLabelData value);
+
+/*!
+ * \brief Utility to update label formatting options
+ *
+ * \param[in,out] box The box to modify
+ * \param[in] format Formatting options for the value
+ */
+void raster_api_set_label_format(struct RasterBox *box, union RasterLabelFormat format);
+
+/*!
+ * \brief Helper to create default integer formatting options
+ *
+ * \param[in] is_unsigned Treat as unsigned integer
+ * \return struct RasterIntFormat with specified options
+ */
+struct RasterIntFormat raster_api_int_format(bool is_unsigned);
+
+/*!
+ * \brief Helper to create default float formatting options
+ *
+ * \param[in] precision Number of digits after decimal point
+ * \return struct RasterFloatFormat with specified options
+ */
+struct RasterFloatFormat raster_api_float_format(uint8_t precision);
+
+/*!
+ * \brief Helper to create default string formatting options
+ *
+ * \param[in] max_length Maximum string length (0 for no limit)
+ * \return struct RasterStringFormat with specified options
+ */
+struct RasterStringFormat raster_api_string_format(uint16_t max_length);
 
 #endif // RASTER_API_H

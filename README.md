@@ -89,6 +89,7 @@ void clear_screen_callback(void) {
 Each label (`struct RasterLabel`) contains:
 - `data` - Union containing the actual data (string, int, float)
 - `type` - Type of data (see Label Data Types)
+- `format` - Union for format options (e.g., number of decimal places for floats)
 - `pos` - Position of the label inside the box (x, y)
 - `font` - Enum defining the font to use
 - `size` - Font size
@@ -100,9 +101,7 @@ Each label (`struct RasterLabel`) contains:
 The library supports the following label data types:
 - `LABEL_DATA_STRING` - Text string (char*)
 - `LABEL_DATA_INT` - Integer value
-- `LABEL_DATA_FLOAT_1` - Float with 1 decimal place
-- `LABEL_DATA_FLOAT_2` - Float with 2 decimal places
-- `LABEL_DATA_FLOAT_3` - Float with 3 decimal places
+- `LABEL_DATA_FLOAT` - Float value
 
 #### Box Structure
 

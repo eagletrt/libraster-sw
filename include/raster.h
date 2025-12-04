@@ -42,14 +42,42 @@ union RasterLabelData {
 };
 
 /*!
- * \brief Defines the coloring method to use
+ * \brief Defines the data type to display
  */
 enum RasterLabelDataType {
-    LABEL_DATA_STRING,  /*!< Text value type */
-    LABEL_DATA_INT,     /*!< Integer value type */
-    LABEL_DATA_FLOAT_1, /*!< Float value type with 1 decimal */
-    LABEL_DATA_FLOAT_2, /*!< Float value type with 2 decimals */
-    LABEL_DATA_FLOAT_3  /*!< Float value type with 3 decimals */
+    LABEL_DATA_STRING, /*!< Text value type */
+    LABEL_DATA_INT,    /*!< Integer value type */
+    LABEL_DATA_FLOAT   /*!< Float value type */
+};
+
+/*!
+ * \brief Formatting options for integer values
+ */
+struct RasterIntFormat {
+    bool is_unsigned; /*!< Treat as unsigned integer */
+};
+
+/*!
+ * \brief Formatting options for floating-point values
+ */
+struct RasterFloatFormat {
+    uint8_t precision; /*!< Number of digits after decimal point */
+};
+
+/*!
+ * \brief Formatting options for string values
+ */
+struct RasterStringFormat {
+    uint16_t max_length; /*!< Maximum string length (0 for no limit) */
+};
+
+/*!
+ * \brief Union of formatting options for different data types
+ */
+union RasterLabelFormat {
+    struct RasterIntFormat int_fmt;       /*!< Integer formatting options */
+    struct RasterFloatFormat float_fmt;   /*!< Float formatting options */
+    struct RasterStringFormat string_fmt; /*!< String formatting options */
 };
 
 /*!
@@ -76,13 +104,14 @@ typedef void (*raster_clear_screen_callback)(void);
  * \brief Defines a label to be drawn on screen
  */
 struct RasterLabel {
-    union RasterLabelData data;    /*!< Content of the label */
-    enum RasterLabelDataType type; /*!< Type of the label content */
-    struct RasterCoords pos;       /*!< Position to draw the label */
-    enum FontName font;            /*!< Font name, defined in font.h */
-    uint16_t size;                 /*!< Size of the text */
-    enum FontAlign align;          /*!< Alignement of the text relative to coords */
-    struct Color color;            /*!< Color of the text */
+    union RasterLabelData data;     /*!< Content of the label */
+    enum RasterLabelDataType type;  /*!< Type of the label content */
+    union RasterLabelFormat format; /*!< Formatting options for the label */
+    struct RasterCoords pos;        /*!< Position to draw the label */
+    enum FontName font;             /*!< Font name, defined in font.h */
+    uint16_t size;                  /*!< Size of the text */
+    enum FontAlign align;           /*!< Alignement of the text relative to coords */
+    struct Color color;             /*!< Color of the text */
 };
 
 /*!
