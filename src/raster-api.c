@@ -32,8 +32,8 @@
  * \param[in] buffer_size Size of the buffer
  */
 static void prv_format_label_data(const struct RasterLabel *label, char *buffer, size_t buffer_size) {
-    if (!label || !buffer || buffer_size == 0) {
-        if (buffer && buffer_size > 0) {
+    if (label == NULL || buffer == NULL || buffer_size == 0) {
+        if (buffer != NULL && buffer_size > 0) {
             buffer[0] = '\0';
         }
         return;
@@ -52,9 +52,7 @@ static void prv_format_label_data(const struct RasterLabel *label, char *buffer,
 
         case LABEL_DATA_FLOAT: {
             const struct RasterFloatFormat *fmt = &label->format.float_fmt;
-            char format_str[16];
-            snprintf(format_str, sizeof(format_str), "%%.%df", fmt->precision);
-            snprintf(buffer, buffer_size, format_str, label->data.float_val);
+            snprintf(buffer, buffer_size, "%.*f", fmt->precision, label->data.float_val);
             break;
         }
 
