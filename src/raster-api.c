@@ -140,9 +140,9 @@ void raster_api_render(struct RasterHandler *hras) {
 struct RasterBox *raster_api_get_box(struct RasterBox *boxes, uint16_t num, uint16_t id) {
     // Loops and search for IDs (can be good for CAN IDs)
     for (int i = 0; i < num; i++) {
-        struct RasterBox *box = boxes + i;
+        struct RasterBox *box = &boxes[i];
         if (box->id == id) {
-            return (boxes + i);
+            return box;
         }
     }
     return NULL;
