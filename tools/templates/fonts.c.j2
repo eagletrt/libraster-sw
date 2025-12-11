@@ -2,15 +2,36 @@
 
 #include "fonts.h"
 {% for font in fonts %}
-const uint8_t sdf_data_{{ font.name }}_{{ font.size }}[] = {
+const uint8_t sdf_data_{{ font.name }}[] = {
 {%- for b in font.sdfs|batch(12) %}
     {% for column in b %}{{ column }}, {% endfor %}
 {%- endfor %}
 };
 
-const Glyph glyphs_{{ font.name }}_{{ font.size }}[] = {
+const struct Glyph glyphs_{{ font.name }}[] = {
 {%- for g in font.glyphs %}
-    { {{ g.offset }}, {{ g.size }}, {{ g.width }}, {{ g.height }} },
+    { '{{ g.char }}', {{ g.offset }}, {{ g.size }}, {{ g.width }}, {{ g.height }} },
 {%- endfor %}
 };
 {% endfor %}
+
+const struct Glyph* find_glyph(enum FontName font, char c) {
+    const struct Font* f = &fonts[font];
+    int low = 0;
+    int high = f->glyph_count - 1;
+
+    while (low <= high) {
+        int mid = (low + high) / 2;
+        char mid_char = f->glyphs[mid].character;
+
+        if (mid_char == c)
+            return &f->glyphs[mid];
+        else if (mid_char < c)
+            low = mid + 1;
+        else
+            high = mid - 1;
+    }
+
+    return 0; // Not found
+}
+

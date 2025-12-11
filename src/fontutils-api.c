@@ -1,24 +1,47 @@
-/**
- * @file fontutils-api.c
- * @date 2024-12-30
- * @author Alessandro Bridi [ale.bridi15@gmail.com]
+/*!
+ * \file fontutils-api.c
+ * \date 2024-12-30
+ * \authors Alessandro Bridi [ale.bridi15@gmail.com]
  *
- * @brief Text rendering functions
+ * \brief FontUtils APIs functions implementations
+ *
+ * \details A rasterizer is a software renderer that works by writing pixels to
+ *     a framebuffer.
+ *     This implementation lets the user define 3 callbacks that defines the
+ *     technique used to write them, so that hardware accelerators can be used
+ *     to archive big speedups.
  */
 
 #include "fontutils-api.h"
+#include "eagletrt.h"
 
-void _draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, float multiplier, int16_t glyph_width, int16_t glyph_height, int16_t *current_x, int16_t *current_y, uint32_t color, draw_line_callback_t line_callback) {
+/*!
+ * \brief Draw a run-length encoded series of pixel_size
+ *
+ * \details This function draws a series of pixels encoded with run-length
+ *     encoding (RLE). It calculates the position and size of the pixels to be
+ *     drawn based on the provided parameters, including scaling multiplier.
+ * 
+ * \param[in] count Number of pixels in the series
+ * \param[in] value Alpha value of the pixels in the series
+ * \param[in] x X position of the glyph
+ * \param[in] y Y position of the glyph
+ * \param[in] multiplier Scaling multiplier
+ * \param[in] glyph_width Width of the glyph
+ * \param[in,out] current_x Current X position in the glyph
+ * \param[in,out] current_y Current Y position in the glyph
+ * \param[in] color Base color of the glyph
+ * \param[in] line_callback Callback to draw a horizontal line of pixels
+ */
+EAGLETRT_STATIC_INLINE void prv_draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, float multiplier, int16_t glyph_width, int16_t *current_x, int16_t *current_y, struct Color color, font_draw_line_callback line_callback) {
     if (value < 30) {
         *current_x += count;
         *current_y += *current_x / glyph_width;
         *current_x %= glyph_width;
-        if (*current_y >= glyph_height)
-            return;
         return;
     }
 
-    uint32_t blended_color = (color & 0x00ffffff) | ((uint32_t)value << 24);
+    uint32_t blended_color = (color.argb & 0x00ffffff) | ((uint32_t)value << 24);
 
     int16_t start_x = x + (*current_x * multiplier);
     int16_t start_y = y + (*current_y * multiplier);
@@ -34,20 +57,32 @@ void _draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, floa
 
     // Fill any potential gaps when scaling by ensuring consecutive rows are drawn
     for (int j = 0; j < draw_height; ++j) {
-        line_callback(start_x, start_y + j, draw_width, blended_color);
+        line_callback(start_x, start_y + j, draw_width, (struct Color){ .argb = blended_color });
     }
 
     *current_x += count;
     *current_y += *current_x / glyph_width;
     *current_x %= glyph_width;
-    if (*current_y >= glyph_height)
-        return;
 }
 
-void _render_glyph(const Glyph *glyph, FontName font, uint16_t x, uint16_t y, uint32_t color, float multiplier, draw_line_callback_t line_callback) {
+/*!
+ * \brief Render a glyph at a specified position with scaling and color
+ *
+ * \details This function renders a glyph at the specified position (x, y)
+ *     with the given scaling multiplier and color. It processes the glyph's
+ *     SDF data using run-length encoding (RLE) to efficiently draw the pixels.
+ * 
+ * \param[in] glyph Pointer to the Glyph structure to be rendered
+ * \param[in] font Font name enumeration
+ * \param[in] x X position to render the glyph
+ * \param[in] y Y position to render the glyph
+ * \param[in] multiplier Scaling multiplier for the glyph size
+ * \param[in] color Base color of the glyph
+ * \param[in] line_callback Callback to draw a horizontal line of pixels
+ */
+EAGLETRT_STATIC_INLINE void prv_render_glyph(const struct Glyph *glyph, enum FontName font, uint16_t x, uint16_t y, float multiplier, struct Color color, font_draw_line_callback line_callback) {
     const uint8_t *data = &fonts[font].sdf_data[glyph->offset];
     uint16_t remaining_size = glyph->size;
-
     uint16_t glyph_width = glyph->width;
     uint16_t glyph_height = glyph->height;
 
@@ -62,59 +97,47 @@ void _render_glyph(const Glyph *glyph, FontName font, uint16_t x, uint16_t y, ui
         uint8_t count2 = *data++;
         remaining_size -= 2;
 
-        _draw_rle_series(count1, value1, x, y, multiplier, glyph_width, glyph_height, &current_x, &current_y, color, line_callback);
-        _draw_rle_series(count2, value2, x, y, multiplier, glyph_width, glyph_height, &current_x, &current_y, color, line_callback);
+        prv_draw_rle_series(count1, value1, x, y, multiplier, glyph_width, &current_x, &current_y, color, line_callback);
+        prv_draw_rle_series(count2, value2, x, y, multiplier, glyph_width, &current_x, &current_y, color, line_callback);
     }
 }
 
-void draw_text(uint16_t x, uint16_t y, FontAlign align, FontName font, const char *text, uint32_t color, uint16_t pixel_size, draw_line_callback_t line_callback) {
+void font_api_draw(uint16_t x, uint16_t y, enum FontAlign align, enum FontName font, const char *__restrict__ text, struct Color color, uint16_t pixel_size, font_draw_line_callback line_callback) {
+    // Adjust x position based on alignment
     if (align != FONT_ALIGN_LEFT) {
-        uint16_t len = text_length(text, pixel_size, font);
+        uint16_t len = font_api_length(text, pixel_size, font);
         if (align == FONT_ALIGN_CENTER)
             x -= len / 2;
         else if (align == FONT_ALIGN_RIGHT)
             x -= len;
     }
 
+    // Calculate scaling multiplier
     uint8_t glyph_height = fonts[font].glyphs[0].height;
     float multiplier = glyph_height ? (float)pixel_size / glyph_height : 1.0f;
 
-    while (*text) {
-        int char_code = *text++;
-        if (char_code >= 32 && char_code <= 126) {
-            const Glyph *glyph = &fonts[font].glyphs[char_code - 32];
-            _render_glyph(glyph, font, x, y, color, multiplier, line_callback);
+    // Render each character in the text
+    register char c;
+    while ((c = *text++)) {
+        const struct Glyph *glyph = find_glyph(font, c);
+        if (glyph != 0) {
+            prv_render_glyph(glyph, font, x, y, multiplier, color, line_callback);
             x += glyph->width * multiplier;
         }
     }
 }
 
-uint16_t text_length(const char *text, uint16_t pixel_size, FontName font) {
+uint16_t font_api_length(const char *__restrict__ text, uint16_t pixel_size, enum FontName font) {
     float tot = 0;
     uint8_t glyph_height = fonts[font].glyphs[0].height;
     float multiplier = glyph_height ? (float)pixel_size / glyph_height : 1.0f;
 
-    while (*text) {
-        int char_code = *text++;
-        if (char_code >= 32 && char_code <= 126) {
-            tot += fonts[font].glyphs[char_code - 32].width * multiplier;
+    register char c;
+    while ((c = *text++)) {
+        const struct Glyph *glyph = find_glyph(font, c);
+        if (glyph != 0) {
+            tot += glyph->width * multiplier;
         }
     }
     return (uint16_t)tot;
-}
-
-uint8_t get_alpha(uint32_t color) {
-    return (color >> 24) & 0xff;
-}
-
-uint8_t get_red(uint32_t color) {
-    return (color >> 16) & 0xff;
-}
-
-uint8_t get_green(uint32_t color) {
-    return (color >> 8) & 0xff;
-}
-
-uint8_t get_blue(uint32_t color) {
-    return color & 0xff;
 }

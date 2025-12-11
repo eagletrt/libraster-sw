@@ -3,6 +3,7 @@
         "name": "konexy",
         "font": "KonexyFont.ttf",
         "size": 120,
-        "edges": [0.2, 0.5]
+        "edges": [0.2, 0.5],
+        "characters": "A-Za-z0-9 ."
     }
 ]

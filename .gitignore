@@ -422,4 +422,6 @@ STM32Make.make
 fonts.c
 fonts.h
 
+docs
+
 ## ---------------- END MANUALLY ADDED ---------------- ##

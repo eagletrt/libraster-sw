@@ -1,39 +1,60 @@
-/**
- * @file fontutils.h
- * @date 2024-12-30
- * @author Alessandro Bridi [ale.bridi15@gmail.com]
+/*!
+ * \file fontutils.h
+ * \date 2024-12-30
+ * \author Alessandro Bridi [ale.bridi15@gmail.com]
  *
- * @brief Text rendering definitions
+ * \brief Text rendering definitions
  */
 
 #ifndef FONTUTILS_H
 #define FONTUTILS_H
 
+#include "colors.h"
 #include <stdint.h>
-#include "fonts.h"
 
-/**
- * @brief Callback to draw a pixel row
- * 
- * @param x Position in pixel of the first pixel on x axis
- * @param y Position in pixel of the first pixel on y axis
- * @param lenght Lenght in pixel of the line
- * @param color Color in ARGB8888 format
- */
-typedef void (*draw_line_callback_t)(uint16_t x, uint16_t y, uint16_t lenght, uint32_t color);
+// Include raster-config.h if it exists
+#ifdef __has_include
+#if __has_include("raster-config.h")
+#include "raster-config.h"
+#endif
+#endif
 
-/**
- * @brief Represents the alignment of the rendering of the text
+#ifndef RASTER_PARTIAL
+/*!
+ * \brief Enable partial raster rendering by default
  *
- * @details
- *     - FONT_ALIGN_LEFT means that the text rendering will start from Coords.x to the left
- *     - FONT_ALIGN_CENTER means that the text rendering will be centered to Coords.x
- *     - FONT_ALIGN_RIGHT means that the text rendering will end at Coords.x
+ * \details This macro enables partial raster rendering if it is not
+ *     already defined. Partial raster rendering allows for more efficient
+ *     drawing of text by only updating the necessary parts of the screen.
  */
-typedef enum {
-    FONT_ALIGN_LEFT,
-    FONT_ALIGN_CENTER,
-    FONT_ALIGN_RIGHT
-} FontAlign;
+#define RASTER_PARTIAL (1)
+#endif
+
+/*!
+ * \brief Callback type for drawing a horizontal line of pixels
+ *
+ * \details This callback function is used to draw a horizontal line
+ *      of pixels on the screen. The function takes the starting X and Y
+ *      positions, the length of the line, and the color of the line in
+ *      ARGB format.
+ *
+ * \param[in] x X position to start drawing
+ * \param[in] y Y position to draw
+ * \param[in] lenght Length of the line to draw
+ * \param[in] color Color of the line (ARGB format)
+ */
+typedef void (*font_draw_line_callback)(uint16_t x, uint16_t y, uint16_t lenght, struct Color color);
+
+/*!
+ * \brief Represents the alignment of the rendering of the text
+ *
+ * \details This enumeration defines the possible alignments for text rendering,
+ *     including left, center, and right alignment.
+ */
+enum FontAlign {
+    FONT_ALIGN_LEFT,   /*!< Left alignment */
+    FONT_ALIGN_CENTER, /*!< Center alignment */
+    FONT_ALIGN_RIGHT   /*!< Right alignment */
+};
 
 #endif // FONTUTILS_H

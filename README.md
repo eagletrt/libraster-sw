@@ -20,6 +20,7 @@ The idea is to let the user decide how things are done. This helps with performa
     import sys
     from pathlib import Path
     from SCons.Script import Import
+    import logging
 
     Import("env")
 
@@ -31,16 +32,18 @@ The idea is to let the user decide how things are done. This helps with performa
     def hash_file(p):
         return hashlib.sha256(p.read_bytes()).hexdigest()
 
+    logger = logging.getLogger("libraster")
+    logging.basicConfig(encoding='utf-8', level=logging.INFO)
 
     if not json_path.exists():
-        print("[libraster-sw] fonts.json not found")
+        logger.warning("[libraster] fonts.json not found")
         exit(1)
     elif not hash_path.exists() or hash_file(json_path) != hash_path.read_text():
-        print("[libraster] generating")
+        logger.info("[libraster] generating")
         os.system(f"{sys.executable} {libgen} --json {json_path}")
         hash_path.write_text(hash_file(json_path))
     else:
-        print("[libraster] fonts.json unchanged, skipping")
+        logger.warning("[libraster] fonts.json unchanged, skipping")
 
     ```
     This will let you create a folder named `tools` containing the `fonts.json`.
@@ -53,49 +56,62 @@ The idea is to let the user decide how things are done. This helps with performa
     You will still need to create the `fonts.json`, but after that everything is on you. You will decide how and when to call the generator. You can pass the path to `fonts.json` using the `--json` argument.
 
 ### Actual usage
-All you have to do is include `libraster-api.h` in your program, declare the interface and call the function `render_interface`, that uses **your** functions to draw the interface.
+All you have to do is include `raster-api.h` in your program, create labels and boxes, then initialize a handler with the interface, and call the function `raster_api_render` with the handler.
 
 > [!IMPORTANT]
-> If you're using 2 buffers, you still have to swap them yourself. This library still does not implement a way to do it.
+> If you're using 2 buffers, you still have to swap them yourself.
+
+#### Callback Functions
+
+You need to implement three callback functions:
 
 ```c
-Threshold ranges[] = {
-    {0.0f, 50.0f, 0x00FF00, 0x000000},
-    {50.1f, 100.0f, 0xFFFF00, 0x000000},
-    {100.1f, 200.0f, 0xFF0000, 0xFFFFFF}
-};
+// Draw a horizontal line of pixels
+void draw_line_callback(uint16_t x, uint16_t y, uint16_t lenght, struct Color color) {
+    // Your implementation here
+    // This is called for text rendering
+}
 
-Thresholds thresholds[] = {
-    {ranges, 3}
-};
+// Draw a filled rectangle
+void draw_rectangle_callback(uint16_t x, uint16_t y, uint16_t w, uint16_t h, struct Color color) {
+    // Your implementation here
+    // This is called for box backgrounds
+}
 
-Label l1;
-create_label(&l1, "XD", (Coords){310, 95}, KONEXY_120, 40, FONT_ALIGN_CENTER);
-Value v1;
-create_value(&v1, 51, false, (Coords){140, 80}, KONEXY_120, 70, FONT_ALIGN_CENTER, (Colors){ .thresholds = thresholds}, THRESHOLDS);
-
-Value v2;
-create_value(&v2, 51, true, (Coords){ 196, 80 }, KONEXY_120, 70, FONT_ALIGN_CENTER, (Colors){ .slider = (Slider){0xff00ff00, ANCHOR_BOTTOM, 0, 200, 3}}, SLIDER);
-
-Label l2;
-create_label(&l2, "PROVA", (Coords){196, 80}, KONEXY_120, 70, FONT_ALIGN_CENTER);
-
-Value v3;
-create_value(&v3, 51.0, true, (Coords){ 196, 80 }, KONEXY_120, 70, FONT_ALIGN_CENTER, (Colors){ .interpolation = (LinearInterpolation){0xff000000, 0xff00ff00, 0.0, 200.0}}, INTERPOLATION);
-
-Box boxes[] = {
-    { 1, 0x1, { 2, 2, 397, 237 }, 0xff000000, 0xffffffff, &l1, &v1 },
-    { 1, 0x2, { 401, 2, 397, 237 }, 0xff000000, 0xffffffff, NULL, &v2 },
-    { 1, 0x3, { 2, 241, 397, 237 }, 0xff000000, 0xffffffff, &l2, NULL },
-    { 1, 0x4, { 401, 241, 397, 237 }, 0xff000000, 0xffffffff, NULL, &v3 }
-};
+// Clear the entire screen (only used when RASTER_PARTIAL is disabled)
+void clear_screen_callback(void) {
+    // Your implementation here
+    // Only needed if RASTER_PARTIAL = 0
+}
 ```
 
-This is a simple but complete interface, and to render it just call `render_interface` like this:
-```c
-render_interface(boxes, 4, draw_line_callback, draw_rectangle_callback);
-```
+#### Label Structure 
+Each label (`struct RasterLabel`) contains:
+- `data` - Union containing the actual data (string, int, float)
+- `type` - Type of data (see Label Data Types)
+- `format` - Union for format options (e.g., number of decimal places for floats)
+- `pos` - Position of the label inside the box (x, y)
+- `font` - Enum defining the font to use
+- `size` - Font size
+- `align` - Text alignment (left, center, right)
+- `color` - Font color (`Color` structure)
+
+#### Label Data Types
+
+The library supports the following label data types:
+- `LABEL_DATA_STRING` - Text string (char*)
+- `LABEL_DATA_INT` - Integer value
+- `LABEL_DATA_FLOAT` - Float value
+
+#### Box Structure
+
+Each box (`struct RasterBox`) contains:
+- `updated` - Flag for partial rendering optimization (only if RASTER_PARTIAL is enabled)
+- `id` - Unique identifier for the box
+- `rect` - Rectangle dimensions (x, y, width, height)
+- `color` - Background color (ARGB format)
+- `label` - Pointer to label structure (optional, can be NULL)
 
 > [!TIP]
-> There is an option called `GRAPHIC_OPT` inside `libraster.h` that changes how the library behaves (and some parameters in functions an structs).
-> This is useful on low power devices to greatly increase performances, but it may create visual artifacts in complex interfaces with overlapping boxes, so use with caution.
+> Create a file `raster-config.h` with the following defines to customize behaviour:
+> - `RASTER_PARTIAL` - Enable/disable partial rendering optimization (default = 1). When enabled, only boxes with `updated = true` will be redrawn.
