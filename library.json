@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/platformio/platformio-core/develop/platformio/assets/schema/library.json",
   "name": "LibRaster",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "A simple library that provides a way to define and raster a graphic layout",
   "keywords": [
     "graphics", "rasterizer", "embedded"
@@ -17,20 +17,26 @@
       "maintainer": true
     }
   ],
+  "dependencies": [
+      {
+          "name": "LibEagleTRT",
+          "version": "https://github.com/eagletrt/libeagletrt-sw.git#v0.1.0"
+      }
+  ],
   "license": "AGPL-3.0-only",
   "frameworks": "*",
   "platforms": "*",
   "headers": [
-      "libraster.h",
-      "libraster-api.h",
+      "raster.h",
+      "raster-api.h",
       "fontutils.h",
       "fontutils-api.h"
   ],
   "examples": [
       {
-          "name": "Full Demo",
+          "name": "Demo using direct rendering of glyphs",
           "base": "examples",
-          "files": [ "demo.c" ]
+          "files": [ "direct-font-rendering.c" ]
       }
   ],
   "export": {
