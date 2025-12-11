@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/platformio/platformio-core/develop/platformio/assets/schema/library.json",
   "name": "LibRaster",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "A simple library that provides a way to define and raster a graphic layout",
   "keywords": [
     "graphics", "rasterizer", "embedded"
