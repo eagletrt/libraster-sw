@@ -31,6 +31,15 @@
 #endif
 
 /*!
+ * \brief Return codes for font rendering operations
+ */
+enum FontReturnCode {
+    FONT_RC_OK,           /*!< Operation successful */
+    FONT_RC_ERROR,        /*!< General error */
+    FONT_RC_NULL_POINTER, /*!< Null pointer error */
+};
+
+/*!
  * \brief Callback type for drawing a horizontal line of pixels
  *
  * \details This callback function is used to draw a horizontal line
@@ -42,8 +51,11 @@
  * \param[in] y Y position to draw
  * \param[in] lenght Length of the line to draw
  * \param[in] color Color of the line (ARGB format)
+ *
+ * \retval FONT_RC_OK if the line was drawn successfully
+ * \retval FONT_RC_ERROR if there was an error drawing the line
  */
-typedef void (*font_draw_line_callback)(uint16_t x, uint16_t y, uint16_t lenght, struct Color color);
+typedef enum FontReturnCode (*font_draw_line_callback)(uint16_t x, uint16_t y, uint16_t lenght, struct Color color);
 
 /*!
  * \brief Represents the alignment of the rendering of the text

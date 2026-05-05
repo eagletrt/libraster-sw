@@ -32,8 +32,12 @@
  * \param[in] color ARGB color value (alpha is ignored)
  * \param[in] size Of which size (vertically) the text is to be rendere
  * \param[in] line_callback Callback used to draw a line
+ *
+ * \retval FONT_RC_OK if the text was drawn successfully
+ * \retval FONT_RC_ERROR if there was an error drawing the text
+ * \retval FONT_RC_NULL_POINTER if the text pointer is NULL
  */
-void font_api_draw(uint16_t x, uint16_t y, enum FontAlign align, enum FontName font, const char *__restrict__ text, struct Color color, uint16_t size, font_draw_line_callback line_callback);
+enum FontReturnCode font_api_draw(uint16_t x, uint16_t y, enum FontAlign align, enum FontName font, const char *__restrict__ text, struct Color color, uint16_t size, font_draw_line_callback line_callback);
 
 /*!
  * \brief Calculate the length of the text in pixel
@@ -44,6 +48,8 @@ void font_api_draw(uint16_t x, uint16_t y, enum FontAlign align, enum FontName f
  * \param[in] text The string to be rendered
  * \param[in] size Of which size (vertically) the text is to be rendered
  * \param[in] font Which font to be used
+ *
+ * \return The length of the text in pixel, 0 if the text is NULL or empty
  */
 uint16_t font_api_length(const char *__restrict__ text, uint16_t size, enum FontName font);
 

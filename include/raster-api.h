@@ -31,8 +31,11 @@
  * \param[in] draw_line Draw line callback
  * \param[in] draw_rectangle Draw rectangle callback
  * \param[in] clear_screen Clear screen callback
+ *
+ * \retval RASTER_RC_OK if the handler was initialized successfully
+ * \retval RASTER_RC_NULL_POINTER if the hras pointer is NULL
  */
-void raster_api_init(struct RasterHandler *hras, struct RasterBox *interface, uint16_t size, font_draw_line_callback draw_line, raster_draw_rectangle_callback draw_rectangle, raster_clear_screen_callback clear_screen);
+enum RasterReturnCode raster_api_init(struct RasterHandler *hras, struct RasterBox *interface, uint16_t size, font_draw_line_callback draw_line, raster_draw_rectangle_callback draw_rectangle, raster_clear_screen_callback clear_screen);
 
 /*!
  * \brief Sets the interface inside the RasterHandler struct
@@ -43,8 +46,11 @@ void raster_api_init(struct RasterHandler *hras, struct RasterBox *interface, ui
  * \param[out] hras Pointer to the RasterHandler struct to modify
  * \param[in] interface Pointer to the defined interface
  * \param[in] size Number of boxes in the interface
+ *
+ * \retval RASTER_RC_OK if the interface was set successfully
+ * \retval RASTER_RC_NULL_POINTER if the hras pointer is NULL
  */
-void raster_api_set_interface(struct RasterHandler *hras, struct RasterBox *interface, uint16_t size);
+enum RasterReturnCode raster_api_set_interface(struct RasterHandler *hras, struct RasterBox *interface, uint16_t size);
 
 /*!
  * \brief Renders the whole interface
@@ -58,54 +64,99 @@ void raster_api_set_interface(struct RasterHandler *hras, struct RasterBox *inte
  * \param[in] hras Pointer to the RasterHandler struct to use
  * \param[in] boxes Pointer to the defined interface
  * \param[in] num Number of boxes in the interface
+ *
+ * \retval RASTER_RC_OK if the interface was rendered successfully
+ * \retval RASTER_RC_NULL_POINTER if the hras pointer is NULL
+ * \retval RASTER_RC_ERROR if there was an error during rendering
  */
-void raster_api_render(struct RasterHandler *hras);
+enum RasterReturnCode raster_api_render(struct RasterHandler *hras);
 
 /*!
  * \brief Utility to get a Box based on id value
  *
  * \details Used to retrieve a specific box that needs to be modified.
  *
- * \param[in] boxes Pointer to the defined interface
- * \param[in] num Number of Box in the interface
+ * /param[in] hras Pointer to the RasterHandler struct to use
  * \param[in] id ID of the box to search for
  *
  * \return struct Box*
  *     - Box pointer if found
  *     - NULL if not found
  */
-struct RasterBox *raster_api_get_box(struct RasterBox *boxes, uint16_t num, uint16_t id);
+struct RasterBox *raster_api_get_box(struct RasterHandler *hras, uint16_t id);
 
 /*!
- * \brief Utility to populate struct Label
+ * \brief Utility to create a string label
  *
- * \param[out] label The label struct to populate
- * \param[in] value Union of possible value types
- * \param[in] type Type of the value passed
- * \param[in] format Formatting options for the value
- * \param[in] pos Position of the text
- * \param[in] font Font name (defined in generation)
- * \param[in] size Text size
- * \param[in] align Alignment of font
+ * \param[out] label Pointer to the RasterLabel struct to initialize
+ * \param[in] text Text content of the label
+ * \param[in] max_length Maximum length of the text (0 for no limit)
+ * \param[in] pos Position to draw the label
+ * \param[in] font Font name, defined in font.h
+ * \param[in] size Size of the text
+ * \param[in] align Alignement of the text relative to coords
  * \param[in] color Color of the text
+ *
+ * \retval RASTER_RC_OK if the label was created successfully
+ * \retval RASTER_RC_NULL_POINTER if the label pointer is NULL
  */
-void raster_api_create_label(struct RasterLabel *label, union RasterLabelData value, enum RasterLabelDataType type, union RasterLabelFormat format, struct RasterCoords pos, enum FontName font, uint16_t size, enum FontAlign align, struct Color color);
+enum RasterReturnCode raster_api_create_string_label(struct RasterLabel *label, char *text, uint16_t max_length, struct RasterCoords pos, enum FontName font, uint16_t size, enum FontAlign align, struct Color color);
+
+/*!
+ * \brief Utility to create an integer label
+ *
+ * \param[out] label Pointer to the RasterLabel struct to initialize
+ * \param[in] value Integer value of the label
+ * \param[in] is_unsigned Treat the value as unsigned integer
+ * \param[in] pos Position to draw the label
+ * \param[in] font Font name, defined in font.h
+ * \param[in] size Size of the text
+ * \param[in] align Alignement of the text relative to coords
+ * \param[in] color Color of the text
+ *
+ * \retval RASTER_RC_OK if the label was created successfully
+ * \retval RASTER_RC_NULL_POINTER if the label pointer is NULL
+ */
+enum RasterReturnCode raster_api_create_int_label(struct RasterLabel *label, int32_t value, bool is_unsigned, struct RasterCoords pos, enum FontName font, uint16_t size, enum FontAlign align, struct Color color);
+
+/*!
+ * \brief Utility to create a float label
+ *
+ * \param[out] label Pointer to the RasterLabel struct to initialize
+ * \param[in] value Float value of the label
+ * \param[in] precision Number of digits after decimal point
+ * \param[in] pos Position to draw the label
+ * \param[in] font Font name, defined in font.h
+ * \param[in] size Size of the text
+ * \param[in] align Alignement of the text relative to coords
+ * \param[in] color Color of the text
+ *
+ * \retval RASTER_RC_OK if the label was created successfully
+ * \retval RASTER_RC_NULL_POINTER if the label pointer is NUL
+ */
+enum RasterReturnCode raster_api_create_float_label(struct RasterLabel *label, float value, uint8_t precision, struct RasterCoords pos, enum FontName font, uint16_t size, enum FontAlign align, struct Color color);
 
 /*!
  * \brief Utility to set label data inside a Box
  *
  * \param[in,out] box The box to modify
  * \param[in] value Union of possible value types
+ *
+ * \retval RASTER_RC_OK if the label data was set successfully
+ * \retval RASTER_RC_NULL_POINTER if the box pointer is NULL or box->format is STRING and value.text is NULL
  */
-void raster_api_set_label_data(struct RasterBox *box, union RasterLabelData value);
+enum RasterReturnCode raster_api_set_label_data(struct RasterBox *box, union RasterLabelData value);
 
 /*!
  * \brief Utility to update label formatting options
  *
  * \param[in,out] box The box to modify
  * \param[in] format Formatting options for the value
+ *
+ * \retval RASTER_RC_OK if the label format was set successfully
+ * \retval RASTER_RC_NULL_POINTER if the box pointer is NULL
  */
-void raster_api_set_label_format(struct RasterBox *box, union RasterLabelFormat format);
+enum RasterReturnCode raster_api_set_label_format(struct RasterBox *box, union RasterLabelFormat format);
 
 /*!
  * \brief Helper to create default integer formatting options

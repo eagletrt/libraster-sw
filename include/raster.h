@@ -14,7 +14,16 @@
 #include "fontutils.h"
 #include "fonts.h"
 
-/**
+/*!
+ * \brief Return codes for raster operations
+ */
+enum RasterReturnCode {
+    RASTER_RC_OK,           /*!< Operation successful */
+    RASTER_RC_ERROR,        /*!< General error */
+    RASTER_RC_NULL_POINTER, /*!< Null pointer error */
+};
+
+/*!
  * \brief Represents a rectangle area
  */
 struct RasterRect {
@@ -90,15 +99,21 @@ union RasterLabelFormat {
  * \param[in] w Width of the rectangle
  * \param[in] h Height of the rectangle
  * \param[in] color Color of the rectangle, ARGB format
+ *
+ * \retval RASTER_RC_OK if the rectangle was drawn successfully
+ * \retval RASTER_RC_ERROR if there was an error drawing the rectangle
  */
-typedef void (*raster_draw_rectangle_callback)(uint16_t x, uint16_t y, uint16_t w, uint16_t h, struct Color color);
+typedef enum RasterReturnCode (*raster_draw_rectangle_callback)(uint16_t x, uint16_t y, uint16_t w, uint16_t h, struct Color color);
 
 /*!
  * \brief Function used to clear the screen
  * 
  * \details This callback function is used to clear the whole screen
+ *
+ * \retval RASTER_RC_OK if the screen was cleared successfully
+ * \retval RASTER_RC_ERROR if there was an error clearing the screen
  */
-typedef void (*raster_clear_screen_callback)(void);
+typedef enum RasterReturnCode (*raster_clear_screen_callback)(void);
 
 /*!
  * \brief Defines a label to be drawn on screen
