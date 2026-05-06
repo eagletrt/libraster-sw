@@ -1,17 +1,3 @@
-"""Font generator for libraster-sw.
-
-Reads a JSON descriptor of fonts to rasterize, builds an SDF for every
-requested character, run-length encodes the result, and emits a pair of
-C/H files that the user's project compiles alongside libraster.
-
-Usage:
-    python tools/generator.py --json path/to/fonts.json --output path/to/dir
-
-The output directory will contain `fonts.c` and `fonts.h`. The library
-itself never embeds these files: include the generated header from your
-source and add the generated `.c` to your build.
-"""
-
 import argparse
 import datetime
 import json
@@ -42,7 +28,7 @@ def parse_args() -> argparse.Namespace:
         "--output",
         type=Path,
         default=None,
-        help="Directory where fonts.c and fonts.h will be written. "
+        help="Directory where raster-fonts.c and raster-fonts.h will be written. "
              "Defaults to the directory containing the JSON file.",
     )
     return parser.parse_args()
@@ -177,7 +163,7 @@ def render_templates(fonts: list[dict], output_dir: Path) -> None:
         str(SCRIPT_DIR)), keep_trailing_newline=True)
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    for src_name, dst_name in (("fonts.c.j2", "fonts.c"), ("fonts.h.j2", "fonts.h")):
+    for src_name, dst_name in (("raster-fonts.c.j2", "raster-fonts.c"), ("raster-fonts.h.j2", "raster-fonts.h")):
         template = env.get_template(f"templates/{src_name}")
         rendered = template.render(timestamp=timestamp, fonts=fonts)
         out_path = output_dir / dst_name

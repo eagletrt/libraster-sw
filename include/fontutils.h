@@ -72,10 +72,6 @@ typedef enum RasterReturnCode (*raster_clear_screen_callback)(void);
 
 /*!
  * \brief Metadata for a single glyph inside a Font.
- *
- * \details The glyph table is sorted by character so it can be searched in
- *     O(log n), but in practice the per-font \c find_glyph function avoids
- *     even that and resolves each character with a direct switch-case.
  */
 struct Glyph {
     char character;  /*!< ASCII character represented by this glyph */

@@ -15,7 +15,7 @@
  *     and add `build/generated/fonts.c` to the build alongside this file.
  */
 
-#include "fonts.h"
+#include "raster-fonts.h"
 #include "raster-api.h"
 #include <stdint.h>
 #include <stddef.h>
