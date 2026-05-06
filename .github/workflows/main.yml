@@ -53,7 +53,7 @@ jobs:
           pio ci -l . \
               -O "framework=stm32cube" \
               -O "build_flags=-I$(pwd)/tools/generated" \
-              examples/direct-font-rendering.c tools/generated/fonts.c \
+              examples/direct-font-rendering.c tools/generated/raster-fonts.c \
               -b nucleo_h723zg
 
   check:
