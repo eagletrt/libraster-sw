@@ -7,7 +7,9 @@
  *
  * \details An interface is a flat array of RasterBox. Each box owns its
  *     rectangle and an optional label. The library renders the interface
- *     using a single user-provided rectangle-fill callback.
+ *     using a single user-provided rectangle-fill callback. Whether a frame
+ *     is a partial redraw or a full clear-and-redraw is decided at runtime
+ *     by the presence of a clear callback on the handler.
  */
 
 #ifndef RASTER_H
@@ -48,9 +50,9 @@ enum RasterLabelDataType {
  * \brief Active member of RasterLabel::data.
  */
 union RasterLabelData {
-    char *text;      /*!< Used when type == LABEL_DATA_STRING */
-    int32_t int_val; /*!< Used when type == LABEL_DATA_INT */
-    float float_val; /*!< Used when type == LABEL_DATA_FLOAT */
+    char *text;      /*!< Used when type == RASTER_LABEL_DATA_STRING */
+    int32_t int_val; /*!< Used when type == RASTER_LABEL_DATA_INT */
+    float float_val; /*!< Used when type == RASTER_LABEL_DATA_FLOAT */
 };
 
 /*!
@@ -78,9 +80,9 @@ struct RasterStringFormat {
  * \brief Active member of RasterLabel::format.
  */
 union RasterLabelFormat {
-    struct RasterIntFormat int_fmt;
-    struct RasterFloatFormat float_fmt;
-    struct RasterStringFormat string_fmt;
+    struct RasterIntFormat int_fmt;       /*!< Used when type == RASTER_LABEL_DATA_INT */
+    struct RasterFloatFormat float_fmt;   /*!< Used when type == RASTER_LABEL_DATA_FLOAT */
+    struct RasterStringFormat string_fmt; /*!< Used when type == RASTER_LABEL_DATA_STRING */
 };
 
 /*!
@@ -110,13 +112,20 @@ struct RasterBox {
 
 /*!
  * \brief Top-level handle bundling an interface and the rendering callbacks.
+ *
+ * \details The clear callback selects the render mode at runtime:
+ *     - When \c clear is NULL the renderer is in partial mode and only
+ *       boxes whose \c updated flag is set are redrawn (the flag is
+ *       cleared after each successful redraw).
+ *     - When \c clear is not NULL the renderer is in full-redraw mode and
+ *       every box is drawn each frame after the clear callback has run.
  */
 struct RasterHandler {
     struct RasterBox *interface; /*!< Currently mounted interface */
     uint16_t size;               /*!< Number of boxes in \c interface */
 
     raster_draw_rectangle_callback draw; /*!< Required: rectangle-fill callback */
-    raster_clear_screen_callback clear;  /*!< Optional unless RASTER_PARTIAL == 0 */
+    raster_clear_screen_callback clear;  /*!< Optional: when set, full-redraw mode */
 };
 
 #endif // RASTER_H

@@ -36,7 +36,7 @@ static enum RasterReturnCode draw_rect(uint16_t x, uint16_t y, uint16_t w, uint1
 
 int main(void) {
     struct RasterLabel title = {
-        .type = LABEL_DATA_STRING,
+        .type = RASTER_LABEL_DATA_STRING,
         .data.text = "HELLO",
         .format.string_fmt = { .max_length = 0 },
         .pos = { .x = 200, .y = 100 },
@@ -46,7 +46,7 @@ int main(void) {
         .color = { .argb = 0xFFFFFFFF },
     };
     struct RasterLabel value = {
-        .type = LABEL_DATA_INT,
+        .type = RASTER_LABEL_DATA_INT,
         .data.int_val = 51,
         .format.int_fmt = { .is_unsigned = false },
         .pos = { .x = 200, .y = 100 },

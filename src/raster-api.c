@@ -4,6 +4,11 @@
  * \author Alessandro Bridi [ale.bridi15@gmail.com]
  *
  * \brief LibRaster public API implementation.
+ *
+ * \details The render mode (partial vs. full) is decided at runtime by the
+ *     presence of a clear callback on the handler. No build-time macros
+ *     are involved, so the same compiled library object can serve both
+ *     modes in a project that switches between them.
  */
 
 #include "raster-api.h"
@@ -27,7 +32,7 @@
  * \param[in]  buffer_size Size of \p buffer in bytes.
  *
  * \retval RASTER_RC_OK on success.
- * \retval RASTER_RC_ERROR if the label's type is invalid or if formatting fails.
+ * \retval RASTER_RC_ERROR if the label has an unrecognized type.
  */
 EAGLETRT_STATIC enum RasterReturnCode prv_format_label(const struct RasterLabel *label, char *buffer, size_t buffer_size) {
     switch (label->type) {
@@ -68,21 +73,18 @@ EAGLETRT_STATIC enum RasterReturnCode prv_format_label(const struct RasterLabel 
 }
 
 /*!
- * \brief Render a single box, drawing its background and (optionally) its label.
+ * \brief Render a single box: background plus optional label.
  *
- * \param[in] box   Box to render.
- * \param[in] draw  Callback to draw rectangles and text.
+ * \param[in,out] box  Box to render. Its \c updated flag is cleared on
+ *     successful redraw when \p clear_updated is true.
+ * \param[in]     draw Rectangle-fill callback.
+ * \param[in]     clear_updated Whether to clear \c box->updated after a
+ *     successful redraw (true in partial mode, false in full-redraw mode).
  *
  * \retval RASTER_RC_OK on success.
- * \retval RASTER_RC_ERROR if drawing the box or its label fails.
+ * \retval RASTER_RC_ERROR if a callback reported an error.
  */
-EAGLETRT_STATIC enum RasterReturnCode prv_draw_box(struct RasterBox *box, raster_draw_rectangle_callback draw) {
-#if RASTER_PARTIAL == 1
-    if (!box->updated) {
-        return RASTER_RC_OK;
-    }
-#endif
-
+EAGLETRT_STATIC enum RasterReturnCode prv_draw_box(struct RasterBox *box, raster_draw_rectangle_callback draw, bool clear_updated) {
     if (draw(box->rect.x, box->rect.y, box->rect.w, box->rect.h, box->color) != RASTER_RC_OK) {
         return RASTER_RC_ERROR;
     }
@@ -99,9 +101,9 @@ EAGLETRT_STATIC enum RasterReturnCode prv_draw_box(struct RasterBox *box, raster
         }
     }
 
-#if RASTER_PARTIAL == 1
-    box->updated = false;
-#endif
+    if (clear_updated) {
+        box->updated = false;
+    }
     return RASTER_RC_OK;
 }
 
@@ -117,7 +119,7 @@ enum RasterReturnCode raster_api_init(struct RasterHandler *handler, struct Rast
 }
 
 enum RasterReturnCode raster_api_set_interface(struct RasterHandler *handler, struct RasterBox *interface, uint16_t size) {
-    if (handler == NULL || interface == NULL) {
+    if (handler == NULL || interface == NULL || size == 0u) {
         return RASTER_RC_NULL_POINTER;
     }
     handler->interface = interface;
@@ -130,17 +132,19 @@ enum RasterReturnCode raster_api_render(struct RasterHandler *handler) {
         return RASTER_RC_NULL_POINTER;
     }
 
-#if RASTER_PARTIAL == 0
-    if (handler->clear == NULL) {
-        return RASTER_RC_NULL_POINTER;
+    const bool full_redraw = (handler->clear != NULL);
+    if (full_redraw) {
+        if (handler->clear() != RASTER_RC_OK) {
+            return RASTER_RC_ERROR;
+        }
     }
-    if (handler->clear() != RASTER_RC_OK) {
-        return RASTER_RC_ERROR;
-    }
-#endif
 
     for (uint16_t i = 0; i < handler->size; ++i) {
-        if (prv_draw_box(&handler->interface[i], handler->draw) != RASTER_RC_OK) {
+        struct RasterBox *box = &handler->interface[i];
+        if (!full_redraw && !box->updated) {
+            continue;
+        }
+        if (prv_draw_box(box, handler->draw, !full_redraw) != RASTER_RC_OK) {
             return RASTER_RC_ERROR;
         }
     }

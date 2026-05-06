@@ -14,6 +14,9 @@
  *     Scaling uses Q16 fixed-point so the renderer never needs an FPU.
  *     A fast path bypasses the multiplications when the requested pixel
  *     size matches the font's native size.
+ *
+ *     Glyph lookup is delegated to a per-font switch-case function carried
+ *     by the Font struct, so the library never has to walk a glyph array.
  */
 
 #include "fontutils-api.h"
@@ -35,6 +38,11 @@
 
 /*!
  * \brief Multiply an unsigned value by a Q16 multiplier with rounding.
+ *
+ * \param[in] value   Value to scale.
+ * \param[in] mul_q16 Q16 fixed-point multiplier.
+ *
+ * \return The product, rounded to the nearest integer.
  */
 EAGLETRT_STATIC_INLINE uint32_t prv_q16_mul(uint32_t value, uint32_t mul_q16) {
     return (value * mul_q16 + FONT_Q16_HALF) >> 16;
@@ -45,7 +53,7 @@ EAGLETRT_STATIC_INLINE uint32_t prv_q16_mul(uint32_t value, uint32_t mul_q16) {
  *
  * \details The run starts at glyph-local position (\p *cx, \p *cy) and is
  *     advanced in place. When \p no_scale is true the run maps 1:1 to
- *     screen pixels; otherwise the run is mapped through the Q16 scale.
+ *     screen pixels; otherwise it goes through the Q16 scale.
  *
  * \param[in]     alpha     Coverage value (already in the upper half of a byte).
  * \param[in]     count     Number of glyph-native pixels in the run.
@@ -72,7 +80,7 @@ EAGLETRT_STATIC enum RasterReturnCode prv_emit_run(uint8_t alpha, uint16_t count
 
     struct Color color = { .argb = base_argb | ((uint32_t)alpha << 24) };
 
-    while (count > 0) {
+    while (count > 0u) {
         uint16_t avail = (uint16_t)(gw - (uint16_t)*cx);
         uint16_t take = count < avail ? count : avail;
 
@@ -85,7 +93,7 @@ EAGLETRT_STATIC enum RasterReturnCode prv_emit_run(uint8_t alpha, uint16_t count
             px = (uint16_t)(ox + (uint16_t)*cx);
             py = (uint16_t)(oy + (uint16_t)*cy);
             pw = take;
-            ph = 1;
+            ph = 1u;
         } else {
             uint32_t sx_q = (uint32_t)(uint16_t)*cx * mul_q16;
             uint32_t sy_q = (uint32_t)(uint16_t)*cy * mul_q16;
@@ -119,14 +127,14 @@ EAGLETRT_STATIC enum RasterReturnCode prv_emit_run(uint8_t alpha, uint16_t count
 /*!
  * \brief Render a single glyph at the given screen origin.
  *
- * \param[in] glyph     Glyph to render.
- * \param[in] font      Font the glyph belongs to, used to access the SDF data.
- * \param[in] ox        Screen X origin of the glyph.
- * \param[in] oy        Screen Y origin of the glyph.
- * \param[in] no_scale  True when no scaling is required.
- * \param[in] mul_q16   Q16 scaling factor (unused when \p no_scale is true).
- * \param[in] color     Base color with the alpha channel masked out.
- * \param[in] draw      Rectangle-fill callback.
+ * \param[in] glyph    Glyph to render.
+ * \param[in] font     Font owning the glyph.
+ * \param[in] ox       Screen X origin of the glyph.
+ * \param[in] oy       Screen Y origin of the glyph.
+ * \param[in] no_scale True when no scaling is required.
+ * \param[in] mul_q16  Q16 scaling factor (unused when \p no_scale is true).
+ * \param[in] color    Base text color.
+ * \param[in] draw     Rectangle-fill callback.
  *
  * \retval RASTER_RC_OK on success.
  * \retval RASTER_RC_ERROR if the draw callback reported an error.
@@ -172,25 +180,10 @@ EAGLETRT_STATIC enum RasterReturnCode prv_render_glyph(const struct Glyph *glyph
 }
 
 const struct Glyph *font_find_glyph(const struct Font *font, char c) {
-    if (font == NULL || font->glyphs == NULL || font->glyph_count == 0u) {
+    if (font == NULL || font->find_glyph == NULL) {
         return NULL;
     }
-
-    int low = 0;
-    int high = (int)font->glyph_count - 1;
-    while (low <= high) {
-        int mid = (low + high) / 2;
-        char mid_char = font->glyphs[mid].character;
-        if (mid_char == c) {
-            return &font->glyphs[mid];
-        }
-        if (mid_char < c) {
-            low = mid + 1;
-        } else {
-            high = mid - 1;
-        }
-    }
-    return NULL;
+    return font->find_glyph(c);
 }
 
 uint16_t font_api_length(const char *text, uint16_t pixel_size, const struct Font *font) {

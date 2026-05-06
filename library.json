@@ -42,10 +42,9 @@
   "export": {
     "include": [
       "src/**",
-      "include/**"
+      "include/**",
+      "tools/**",
+      "examples/**"
     ]
-  },
-  "scripts": {
-      "postinstall": "tools/generator.py"
   }
 }

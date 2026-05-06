@@ -41,6 +41,7 @@ jobs:
           if [ ! -f "platformio.ini" ]; then
             printf "[env:latest_stable]\n" > platformio.ini
             printf "platform = native\n" >> platformio.ini
+            printf "build_flags = -Itest/include\n" >> platformio.ini
             printf "lib_deps = Unity, ./\n" >> platformio.ini
             echo "Created platformio.ini"
           fi
@@ -48,8 +49,12 @@ jobs:
 
       - name: Run Example
         run: |
-          python tools/generator.py --json tools/fonts.json
-          pio ci -l . --exclude=src/test --exclude=src/examples -O "framework=stm32cube" examples/direct-font-rendering.c -b nucleo_h723zg
+          python tools/generator.py --json tools/fonts.json --output tools/generated
+          pio ci -l . \
+              -O "framework=stm32cube" \
+              -O "build_flags=-Itools/generated" \
+              examples/direct-font-rendering.c tools/generated/fonts.c \
+              -b nucleo_h723zg
 
   check:
     name: Static Code Analysis
@@ -89,6 +94,7 @@ jobs:
           if [ ! -f "platformio.ini" ]; then
             printf "[env:latest_stable]\n" > platformio.ini
             printf "platform = native\n" >> platformio.ini
+            printf "build_flags = -Itest/include\n" >> platformio.ini
             printf" lib_deps = Unity, ./\n" >> platformio.ini
             echo "Created platformio.ini"
           fi

@@ -1,117 +1,203 @@
 # LIBRASTER
 
-This library is made to rasterize an interface defined by the user using only callbacks.
+A small graphics library for embedded UIs. The user describes the screen
+as a flat array of boxes (each with a label) and provides one drawing
+primitive — libraster takes care of the rest.
 
 ## Why callbacks?
 
-The idea is to let the user decide how things are done. This helps with performances based on the platform, as using 2 for loops for drawing a square isn't always the best option. This library does not use dynamic allocation to make sure it stays compatible with every platform.
+Drawing is delegated to the user via a single `raster_draw_rectangle_callback`
+so hardware accelerators can be plugged in without changing library code.
+The library never allocates dynamically.
 
 > [!TIP]
-> On an STM32 you may want to use `DMA2D`, while using SDL2 you may want to use the function `SDL_FillRect` or just 2 for loops.
+> On an STM32 you may want to wire the callback to `DMA2D`; with SDL2 you
+> can use `SDL_FillRect`; on a raw framebuffer two nested loops are enough.
+
+## Render modes
+
+The render mode is selected at runtime by whether you pass a clear callback
+to `raster_api_init`:
+
+- **Partial mode** (`clear == NULL`): only boxes whose `updated` flag is set
+  are redrawn each frame. The flag is cleared automatically after a successful
+  redraw. This is the common path for low-power UIs.
+- **Full-redraw mode** (`clear != NULL`): the clear callback runs first and
+  every box is drawn each frame.
+
+There is no `raster-config.h`, no compile-time flag, and no need to
+recompile the library to switch modes.
+
+## Fonts
+
+Fonts are not embedded in the library. The bundled generator turns one or
+more TTFs into a pair of `fonts.c`/`fonts.h` files that you compile and
+link with your application. Each font carries its own `find_glyph`
+function (a switch-case the compiler can fold into a jump table), so glyph
+lookup is a direct call rather than a generic data-driven scan.
+
+### Generating fonts
+
+Create a `fonts.json` describing the fonts you want:
+
+```json
+[
+    {
+        "name": "konexy",
+        "font": "KonexyFont.ttf",
+        "size": 120,
+        "edges": [0.2, 0.5],
+        "characters": "A-Za-z0-9 ."
+    }
+]
+```
+
+Run the generator, pointing it at your JSON and an output directory:
+
+```sh
+python tools/generator.py --json path/to/fonts.json --output path/to/output
+```
+
+This writes `fonts.c` and `fonts.h` into the output directory. Each font
+in the JSON becomes an `extern const struct Font font_<name>;` declaration
+in the header.
+
+### Wiring into PlatformIO
+
+A typical PlatformIO project keeps the generator hooked to fonts.json via
+a pre-build script and adds the output to its source filter:
+
+```ini
+build_flags =
+    -I tools/generated
+build_src_filter = +<*> +<../tools/generated/*>
+extra_scripts = pre:tools/generate_fonts.py
+```
+
+The pre-build script regenerates only when fonts.json changes.
+Here is a sample `generate_fonts.py`:
+
+```python
+import hashlib
+import logging
+import os
+import sys
+from pathlib import Path
+
+from SCons.Script import Import
+
+Import("env")
+
+JSON_PATH = Path("tools/fonts.json")
+HASH_PATH = Path("tools/.fonts.json.sha256")
+OUTPUT_DIR = Path("tools/generated")
+
+logging.basicConfig(level=logging.INFO, format="[libraster] %(message)s")
+logger = logging.getLogger("libraster")
+
+
+def hash_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def main() -> int:
+    if not JSON_PATH.exists():
+        logger.warning("fonts.json not found at %s", JSON_PATH)
+        return 1
+
+    try:
+        generator = next(Path(".pio").rglob("generator.py"))
+    except StopIteration:
+        logger.warning("libraster generator.py not found under .pio/ (LibRaster not installed?)")
+        return 1
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    current_hash = hash_file(JSON_PATH)
+    output_files_present = (
+        OUTPUT_DIR / "fonts.c").exists() and (OUTPUT_DIR / "fonts.h").exists()
+    cache_valid = HASH_PATH.exists() and HASH_PATH.read_text() == current_hash
+
+    if cache_valid and output_files_present:
+        logger.info("fonts.json unchanged, skipping")
+        return 0
+
+    logger.info("regenerating fonts into %s", OUTPUT_DIR)
+    cmd = f"{sys.executable} {generator} --json {JSON_PATH} --output {OUTPUT_DIR}"
+    if os.system(cmd) != 0:
+        logger.error("font generator failed")
+        return 1
+
+    HASH_PATH.write_text(current_hash)
+    return 0
+
+
+if main() != 0:
+    sys.exit(1)
+```
 
 ## Usage
 
-### First of all you need to generate the actual font. There are 2 main cases:
-1. **Using PlatformIO package manager**
-    You will need to add a script as such:
-    ```python
-    import os
-    import hashlib
-    import sys
-    from pathlib import Path
-    from SCons.Script import Import
-    import logging
-
-    Import("env")
-
-    json_path = Path("tools/fonts.json")
-    hash_path = Path("tools/.fonts.json.sha256")
-    libgen = next(Path(".pio").rglob("generator.py"))
-
-
-    def hash_file(p):
-        return hashlib.sha256(p.read_bytes()).hexdigest()
-
-    logger = logging.getLogger("libraster")
-    logging.basicConfig(encoding='utf-8', level=logging.INFO)
-
-    if not json_path.exists():
-        logger.warning("[libraster] fonts.json not found")
-        exit(1)
-    elif not hash_path.exists() or hash_file(json_path) != hash_path.read_text():
-        logger.info("[libraster] generating")
-        os.system(f"{sys.executable} {libgen} --json {json_path}")
-        hash_path.write_text(hash_file(json_path))
-    else:
-        logger.warning("[libraster] fonts.json unchanged, skipping")
-
-    ```
-    This will let you create a folder named `tools` containing the `fonts.json`.
-    Then in your `platformio.ini` just call the script on-build like this:
-    ```
-    extra_scripts = pre:tools/generate_fonts.py
-    ```
-
-2. **Using the library without PlatformIO package manager**
-    You will still need to create the `fonts.json`, but after that everything is on you. You will decide how and when to call the generator. You can pass the path to `fonts.json` using the `--json` argument.
-
-### Actual usage
-All you have to do is include `raster-api.h` in your program, create labels and boxes, then initialize a handler with the interface, and call the function `raster_api_render` with the handler.
-
-> [!IMPORTANT]
-> If you're using 2 buffers, you still have to swap them yourself.
-
-#### Callback Functions
-
-You need to implement three callback functions:
+Include `raster-api.h` and the generated `fonts.h`. Build an interface
+with designated initializers, then init and render:
 
 ```c
-// Draw a horizontal line of pixels
-void draw_line_callback(uint16_t x, uint16_t y, uint16_t lenght, struct Color color) {
-    // Your implementation here
-    // This is called for text rendering
+#include "fonts.h"
+#include "raster-api.h"
+
+static enum RasterReturnCode draw(uint16_t x, uint16_t y, uint16_t w, uint16_t h, struct Color color) {
+    /* Fill the rectangle in your framebuffer here. */
+    return RASTER_RC_OK;
 }
 
-// Draw a filled rectangle
-void draw_rectangle_callback(uint16_t x, uint16_t y, uint16_t w, uint16_t h, struct Color color) {
-    // Your implementation here
-    // This is called for box backgrounds
-}
+static struct RasterLabel speed_label = {
+    .type = RASTER_LABEL_DATA_INT,
+    .data.int_val = 0,
+    .format.int_fmt = { .is_unsigned = true },
+    .pos = { .x = 100, .y = 100 },
+    .font = &font_konexy,
+    .size = 60,
+    .align = FONT_ALIGN_CENTER,
+    .color = { .argb = 0xFFFFFFFF },
+};
 
-// Clear the entire screen (only used when RASTER_PARTIAL is disabled)
-void clear_screen_callback(void) {
-    // Your implementation here
-    // Only needed if RASTER_PARTIAL = 0
+static struct RasterBox boxes[] = {
+    { .updated = true, .id = 0x1, .rect = { 0, 0, 200, 200 },
+      .color = { .argb = 0xFF000000 }, .label = &speed_label },
+};
+
+int main(void) {
+    struct RasterHandler handler;
+    raster_api_init(&handler, boxes, 1, draw, NULL); /* partial mode */
+    raster_api_render(&handler);
+
+    /* Update a value and redraw next frame. */
+    raster_api_set_label_int(&boxes[0], 42);
+    raster_api_render(&handler);
+    return 0;
 }
 ```
 
-#### Label Structure 
-Each label (`struct RasterLabel`) contains:
-- `data` - Union containing the actual data (string, int, float)
-- `type` - Type of data (see Label Data Types)
-- `format` - Union for format options (e.g., number of decimal places for floats)
-- `pos` - Position of the label inside the box (x, y)
-- `font` - Enum defining the font to use
-- `size` - Font size
-- `align` - Text alignment (left, center, right)
-- `color` - Font color (`Color` structure)
+### Updating labels
 
-#### Label Data Types
+The `raster_api_set_label_*` helpers update the value and mark the
+containing box as updated, so the next render redraws it automatically:
 
-The library supports the following label data types:
-- `LABEL_DATA_STRING` - Text string (char*)
-- `LABEL_DATA_INT` - Integer value
-- `LABEL_DATA_FLOAT` - Float value
+```c
+raster_api_set_label_text(box, "READY");
+raster_api_set_label_int(box, 99);
+raster_api_set_label_float(box, 3.14f);
+raster_api_set_label_format(box, (union RasterLabelFormat){ .float_fmt = { .precision = 2 } });
+```
 
-#### Box Structure
+### Label types
 
-Each box (`struct RasterBox`) contains:
-- `updated` - Flag for partial rendering optimization (only if RASTER_PARTIAL is enabled)
-- `id` - Unique identifier for the box
-- `rect` - Rectangle dimensions (x, y, width, height)
-- `color` - Background color (ARGB format)
-- `label` - Pointer to label structure (optional, can be NULL)
+```c
+enum RasterLabelDataType {
+    RASTER_LABEL_DATA_STRING, /* char *  */
+    RASTER_LABEL_DATA_INT,    /* int32_t */
+    RASTER_LABEL_DATA_FLOAT,  /* float   */
+};
+```
 
-> [!TIP]
-> Create a file `raster-config.h` with the following defines to customize behaviour:
-> - `RASTER_PARTIAL` - Enable/disable partial rendering optimization (default = 1). When enabled, only boxes with `updated = true` will be redrawn.
+Each type has a matching format struct (max length / precision / signedness)
+selected via the `format` union.

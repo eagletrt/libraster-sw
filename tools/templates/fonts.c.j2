@@ -5,6 +5,8 @@
 
 #include "fonts.h"
 
+#include <stddef.h>
+
 {% for font in fonts %}
 static const uint8_t sdf_data_{{ font.name }}[] = {
 {%- for chunk in font.sdfs|batch(12) %}
@@ -18,10 +20,20 @@ static const struct Glyph glyphs_{{ font.name }}[] = {
 {%- endfor %}
 };
 
+static const struct Glyph *find_glyph_{{ font.name }}(char c) {
+    switch (c) {
+{%- for g in font.glyphs %}
+        case '{{ g.char }}': return &glyphs_{{ font.name }}[{{ loop.index0 }}];
+{%- endfor %}
+        default: return NULL;
+    }
+}
+
 const struct Font font_{{ font.name }} = {
     .base_size = {{ font.base_size }},
     .sdf_data = sdf_data_{{ font.name }},
     .glyphs = glyphs_{{ font.name }},
     .glyph_count = {{ font.glyphs|length }},
+    .find_glyph = find_glyph_{{ font.name }},
 };
 {% endfor %}
