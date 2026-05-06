@@ -1,173 +1,255 @@
 /*!
  * \file fontutils-api.c
  * \date 2024-12-30
- * \authors Alessandro Bridi [ale.bridi15@gmail.com]
+ * \author Alessandro Bridi [ale.bridi15@gmail.com]
  *
- * \brief FontUtils APIs functions implementations
+ * \brief Glyph rendering implementation.
  *
- * \details A rasterizer is a software renderer that works by writing pixels to
- *     a framebuffer.
- *     This implementation lets the user define 3 callbacks that defines the
- *     technique used to write them, so that hardware accelerators can be used
- *     to archive big speedups.
+ * \details Glyphs are stored as RLE-compressed SDF coverage values, packed
+ *     as triplets of (value_byte, count1, count2). The high nibble of the
+ *     value byte is the alpha for the first run, the low nibble is the
+ *     alpha for the second run; both are scaled to the high half of an
+ *     8-bit channel before being emitted.
+ *
+ *     Scaling uses Q16 fixed-point so the renderer never needs an FPU.
+ *     A fast path bypasses the multiplications when the requested pixel
+ *     size matches the font's native size.
  */
 
 #include "fontutils-api.h"
 #include "eagletrt.h"
-#include "fontutils.h"
-#include "raster.h"
+#include <stdbool.h>
 #include <stddef.h>
 
 /*!
- * \brief Draw a run-length encoded series of pixel_size
- *
- * \details This function draws a series of pixels encoded with run-length
- *     encoding (RLE). It calculates the position and size of the pixels to be
- *     drawn based on the provided parameters, including scaling multiplier.
- * 
- * \param[in] count Number of pixels in the series
- * \param[in] value Alpha value of the pixels in the series
- * \param[in] x X position of the glyph
- * \param[in] y Y position of the glyph
- * \param[in] multiplier Scaling multiplier
- * \param[in] glyph_width Width of the glyph
- * \param[in,out] current_x Current X position in the glyph
- * \param[in,out] current_y Current Y position in the glyph
- * \param[in] color Base color of the glyph
- * \param[in] line_callback Callback to draw a horizontal line of pixels
+ * \brief Coverage values strictly below this threshold are treated as fully
+ *     transparent and skipped, since the corresponding rectangle would be
+ *     barely visible while still costing a callback.
  */
-EAGLETRT_STATIC_INLINE enum FontReturnCode prv_font_api_draw_rle_series(uint8_t count, uint8_t value, uint16_t x, uint16_t y, float multiplier, int16_t glyph_width, int16_t *current_x, int16_t *current_y, struct Color color, font_draw_line_callback line_callback) {
-    if (value < 30) {
-        *current_x += count;
-        *current_y += *current_x / glyph_width;
-        *current_x %= glyph_width;
-        return FONT_RC_OK;
-    }
+#define FONT_ALPHA_THRESHOLD (30u)
 
-    uint32_t blended_color = (color.argb & 0x00ffffff) | ((uint32_t)value << 24);
+/*!
+ * \brief Q16 fixed-point one half, used for rounding before the right shift.
+ */
+#define FONT_Q16_HALF (0x8000u)
 
-    int16_t start_x = x + (*current_x * multiplier);
-    int16_t start_y = y + (*current_y * multiplier);
-    int16_t end_x = x + ((*current_x + count) * multiplier);
-    int16_t end_y = y + ((*current_y + 1) * multiplier);
-    int16_t draw_width = (int16_t)(end_x - start_x + 0.5f);
-    int16_t draw_height = (int16_t)(end_y - start_y + 0.5f);
-
-    if (draw_width < 1)
-        draw_width = 1;
-    if (draw_height < 1)
-        draw_height = 1;
-
-    // Fill any potential gaps when scaling by ensuring consecutive rows are drawn
-    for (int j = 0; j < draw_height; ++j) {
-        if (line_callback(start_x, start_y + j, draw_width, (struct Color){ .argb = blended_color }) == FONT_RC_ERROR) {
-            return FONT_RC_ERROR;
-        }
-    }
-
-    *current_x += count;
-    *current_y += *current_x / glyph_width;
-    *current_x %= glyph_width;
-    return FONT_RC_OK;
+/*!
+ * \brief Multiply an unsigned value by a Q16 multiplier with rounding.
+ */
+EAGLETRT_STATIC_INLINE uint32_t prv_q16_mul(uint32_t value, uint32_t mul_q16) {
+    return (value * mul_q16 + FONT_Q16_HALF) >> 16;
 }
 
 /*!
- * \brief Render a glyph at a specified position with scaling and color
+ * \brief Emit a single coverage run, splitting it at glyph row boundaries.
  *
- * \details This function renders a glyph at the specified position (x, y)
- *     with the given scaling multiplier and color. It processes the glyph's
- *     SDF data using run-length encoding (RLE) to efficiently draw the pixels.
- * 
- * \param[in] glyph Pointer to the Glyph structure to be rendered
- * \param[in] font Font name enumeration
- * \param[in] x X position to render the glyph
- * \param[in] y Y position to render the glyph
- * \param[in] multiplier Scaling multiplier for the glyph size
- * \param[in] color Base color of the glyph
- * \param[in] line_callback Callback to draw a horizontal line of pixels
+ * \details The run starts at glyph-local position (\p *cx, \p *cy) and is
+ *     advanced in place. When \p no_scale is true the run maps 1:1 to
+ *     screen pixels; otherwise the run is mapped through the Q16 scale.
  *
- * \retval FONT_RC_OK if the glyph was rendered successfully
- * \retval FONT_RC_ERROR if there was an error rendering the glyph
- * \retval FONT_RC_NULL_POINTER if the glyph pointer or line_callback is NULL
+ * \param[in]     alpha     Coverage value (already in the upper half of a byte).
+ * \param[in]     count     Number of glyph-native pixels in the run.
+ * \param[in]     gw        Glyph width in native pixels.
+ * \param[in]     no_scale  True when no scaling is required.
+ * \param[in]     mul_q16   Q16 scaling factor (unused when \p no_scale is true).
+ * \param[in]     ox        Screen X origin of the glyph.
+ * \param[in]     oy        Screen Y origin of the glyph.
+ * \param[in]     base_argb Base ARGB color with the alpha channel masked out.
+ * \param[in,out] cx        Glyph-local X cursor.
+ * \param[in,out] cy        Glyph-local Y cursor.
+ * \param[in]     draw      Rectangle-fill callback.
+ *
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_ERROR if the draw callback reported an error.
  */
-EAGLETRT_STATIC_INLINE enum RasterReturnCode prv_font_api_render_glyph(const struct Glyph *glyph, enum FontName font, uint16_t x, uint16_t y, float multiplier, struct Color color, font_draw_line_callback line_callback) {
-    if (glyph == NULL || line_callback == NULL) {
-        return RASTER_RC_NULL_POINTER;
+EAGLETRT_STATIC enum RasterReturnCode prv_emit_run(uint8_t alpha, uint16_t count, uint16_t gw, bool no_scale, uint32_t mul_q16, uint16_t ox, uint16_t oy, uint32_t base_argb, int16_t *cx, int16_t *cy, raster_draw_rectangle_callback draw) {
+    if (alpha < FONT_ALPHA_THRESHOLD) {
+        uint32_t total = (uint32_t)(uint16_t)*cx + count;
+        *cx = (int16_t)(total % gw);
+        *cy += (int16_t)(total / gw);
+        return RASTER_RC_OK;
     }
 
-    const uint8_t *data = &fonts[font].sdf_data[glyph->offset];
-    uint16_t remaining_size = glyph->size;
-    uint16_t glyph_width = glyph->width;
-    uint16_t glyph_height = glyph->height;
+    struct Color color = { .argb = base_argb | ((uint32_t)alpha << 24) };
 
-    int16_t current_x = 0;
-    int16_t current_y = 0;
+    while (count > 0) {
+        uint16_t avail = (uint16_t)(gw - (uint16_t)*cx);
+        uint16_t take = count < avail ? count : avail;
 
-    while (remaining_size > 0 && current_y < glyph_height) {
-        uint8_t value_raw = *data++;
-        uint8_t value1 = (value_raw & 0xF0);
-        uint8_t value2 = (value_raw << 4);
-        uint8_t count1 = *data++;
-        uint8_t count2 = *data++;
-        remaining_size -= 2;
+        uint16_t px;
+        uint16_t py;
+        uint16_t pw;
+        uint16_t ph;
 
-        enum FontReturnCode rc1 = prv_font_api_draw_rle_series(count1, value1, x, y, multiplier, glyph_width, &current_x, &current_y, color, line_callback);
-        enum FontReturnCode rc2 = prv_font_api_draw_rle_series(count2, value2, x, y, multiplier, glyph_width, &current_x, &current_y, color, line_callback);
+        if (no_scale) {
+            px = (uint16_t)(ox + (uint16_t)*cx);
+            py = (uint16_t)(oy + (uint16_t)*cy);
+            pw = take;
+            ph = 1;
+        } else {
+            uint32_t sx_q = (uint32_t)(uint16_t)*cx * mul_q16;
+            uint32_t sy_q = (uint32_t)(uint16_t)*cy * mul_q16;
+            uint32_t ex_q = (uint32_t)((uint16_t)*cx + take) * mul_q16;
+            uint32_t ey_q = (uint32_t)((uint16_t)*cy + 1u) * mul_q16;
+            uint16_t sx = (uint16_t)(sx_q >> 16);
+            uint16_t sy = (uint16_t)(sy_q >> 16);
+            uint16_t ex = (uint16_t)((ex_q + FONT_Q16_HALF) >> 16);
+            uint16_t ey = (uint16_t)((ey_q + FONT_Q16_HALF) >> 16);
+            px = (uint16_t)(ox + sx);
+            py = (uint16_t)(oy + sy);
+            pw = ex > sx ? (uint16_t)(ex - sx) : 1u;
+            ph = ey > sy ? (uint16_t)(ey - sy) : 1u;
+        }
 
-        if (rc1 != FONT_RC_OK || rc2 != FONT_RC_OK) {
+        if (draw(px, py, pw, ph, color) != RASTER_RC_OK) {
             return RASTER_RC_ERROR;
+        }
+
+        *cx += (int16_t)take;
+        count -= take;
+        if (*cx >= (int16_t)gw) {
+            *cx = 0;
+            (*cy)++;
         }
     }
 
     return RASTER_RC_OK;
 }
 
-enum FontReturnCode font_api_draw(uint16_t x, uint16_t y, enum FontAlign align, enum FontName font, const char *__restrict__ text, struct Color color, uint16_t pixel_size, font_draw_line_callback line_callback) {
-    if (text == NULL || line_callback == NULL) {
-        return FONT_RC_NULL_POINTER;
+/*!
+ * \brief Render a single glyph at the given screen origin.
+ *
+ * \param[in] glyph     Glyph to render.
+ * \param[in] font      Font the glyph belongs to, used to access the SDF data.
+ * \param[in] ox        Screen X origin of the glyph.
+ * \param[in] oy        Screen Y origin of the glyph.
+ * \param[in] no_scale  True when no scaling is required.
+ * \param[in] mul_q16   Q16 scaling factor (unused when \p no_scale is true).
+ * \param[in] color     Base color with the alpha channel masked out.
+ * \param[in] draw      Rectangle-fill callback.
+ *
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_ERROR if the draw callback reported an error.
+ */
+EAGLETRT_STATIC enum RasterReturnCode prv_render_glyph(const struct Glyph *glyph, const struct Font *font, uint16_t ox, uint16_t oy, bool no_scale, uint32_t mul_q16, struct Color color, raster_draw_rectangle_callback draw) {
+    const uint16_t gw = glyph->width;
+    const uint16_t gh = glyph->height;
+    if (gw == 0u || gh == 0u) {
+        return RASTER_RC_OK;
     }
 
-    // Adjust x position based on alignment
-    if (align != FONT_ALIGN_LEFT) {
-        uint16_t len = font_api_length(text, pixel_size, font);
-        if (len == 0) {
-            return FONT_RC_OK; // Nothing to draw, so consider it successful
+    const uint8_t *data = font->sdf_data + glyph->offset;
+    const uint8_t *const end = data + glyph->size;
+    const uint32_t base_argb = color.argb & 0x00FFFFFFu;
+
+    int16_t cx = 0;
+    int16_t cy = 0;
+
+    while (data + 3 <= end && cy < (int16_t)gh) {
+        uint8_t raw = data[0];
+        uint8_t cnt1 = data[1];
+        uint8_t cnt2 = data[2];
+        data += 3;
+
+        uint8_t alpha1 = (uint8_t)(raw & 0xF0u);
+        uint8_t alpha2 = (uint8_t)((raw & 0x0Fu) << 4);
+
+        if (cnt1 > 0u) {
+            enum RasterReturnCode rc = prv_emit_run(alpha1, cnt1, gw, no_scale, mul_q16, ox, oy, base_argb, &cx, &cy, draw);
+            if (rc != RASTER_RC_OK) {
+                return rc;
+            }
         }
-        if (align == FONT_ALIGN_CENTER)
-            x -= len / 2;
-        else if (align == FONT_ALIGN_RIGHT)
-            x -= len;
-    }
-
-    // Calculate scaling multiplier
-    uint8_t glyph_height = fonts[font].glyphs[0].height;
-    float multiplier = glyph_height ? (float)pixel_size / glyph_height : 1.0f;
-
-    // Render each character in the text
-    register char c;
-    while ((c = *text++)) {
-        const struct Glyph *glyph = fonts_find_glyph(font, c);
-        if (glyph != NULL) {
-            prv_font_api_render_glyph(glyph, font, x, y, multiplier, color, line_callback);
-            x += glyph->width * multiplier;
+        if (cnt2 > 0u) {
+            enum RasterReturnCode rc = prv_emit_run(alpha2, cnt2, gw, no_scale, mul_q16, ox, oy, base_argb, &cx, &cy, draw);
+            if (rc != RASTER_RC_OK) {
+                return rc;
+            }
         }
     }
+
+    return RASTER_RC_OK;
 }
 
-uint16_t font_api_length(const char *__restrict__ text, uint16_t pixel_size, enum FontName font) {
-    if (text == NULL) {
-        return 0;
+const struct Glyph *font_find_glyph(const struct Font *font, char c) {
+    if (font == NULL || font->glyphs == NULL || font->glyph_count == 0u) {
+        return NULL;
     }
-    float tot = 0;
-    uint8_t glyph_height = fonts[font].glyphs[0].height;
-    float multiplier = glyph_height ? (float)pixel_size / glyph_height : 1.0f;
 
-    register char c;
-    while ((c = *text++)) {
-        const struct Glyph *glyph = fonts_find_glyph(font, c);
-        if (glyph != NULL) {
-            tot += glyph->width * multiplier;
+    int low = 0;
+    int high = (int)font->glyph_count - 1;
+    while (low <= high) {
+        int mid = (low + high) / 2;
+        char mid_char = font->glyphs[mid].character;
+        if (mid_char == c) {
+            return &font->glyphs[mid];
+        }
+        if (mid_char < c) {
+            low = mid + 1;
+        } else {
+            high = mid - 1;
         }
     }
-    return (uint16_t)tot;
+    return NULL;
+}
+
+uint16_t font_api_length(const char *text, uint16_t pixel_size, const struct Font *font) {
+    if (text == NULL || font == NULL || font->base_size == 0u) {
+        return 0u;
+    }
+
+    const bool no_scale = (pixel_size == font->base_size);
+    const uint32_t mul_q16 = no_scale ? 0u : ((uint32_t)pixel_size << 16) / font->base_size;
+
+    uint32_t total = 0u;
+    for (const char *p = text; *p != '\0'; ++p) {
+        const struct Glyph *glyph = font_find_glyph(font, *p);
+        if (glyph == NULL) {
+            continue;
+        }
+        total += no_scale ? glyph->width : prv_q16_mul(glyph->width, mul_q16);
+    }
+
+    return total > 0xFFFFu ? 0xFFFFu : (uint16_t)total;
+}
+
+enum RasterReturnCode font_api_draw(uint16_t x, uint16_t y, enum FontAlign align, const struct Font *font, const char *text, struct Color color, uint16_t pixel_size, raster_draw_rectangle_callback draw) {
+    if (font == NULL || text == NULL || draw == NULL) {
+        return RASTER_RC_NULL_POINTER;
+    }
+    if (font->base_size == 0u) {
+        return RASTER_RC_OK;
+    }
+
+    if (align != FONT_ALIGN_LEFT) {
+        uint16_t len = font_api_length(text, pixel_size, font);
+        if (len == 0u) {
+            return RASTER_RC_OK;
+        }
+        if (align == FONT_ALIGN_CENTER) {
+            x = (uint16_t)(x - len / 2u);
+        } else {
+            x = (uint16_t)(x - len);
+        }
+    }
+
+    const bool no_scale = (pixel_size == font->base_size);
+    const uint32_t mul_q16 = no_scale ? 0u : ((uint32_t)pixel_size << 16) / font->base_size;
+
+    for (const char *p = text; *p != '\0'; ++p) {
+        const struct Glyph *glyph = font_find_glyph(font, *p);
+        if (glyph == NULL) {
+            continue;
+        }
+
+        enum RasterReturnCode rc = prv_render_glyph(glyph, font, x, y, no_scale, mul_q16, color, draw);
+        if (rc != RASTER_RC_OK) {
+            return rc;
+        }
+
+        const uint16_t advance = no_scale ? glyph->width : (uint16_t)prv_q16_mul(glyph->width, mul_q16);
+        x = (uint16_t)(x + advance);
+    }
+
+    return RASTER_RC_OK;
 }

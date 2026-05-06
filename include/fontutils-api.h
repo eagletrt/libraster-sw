@@ -1,56 +1,49 @@
 /*!
  * \file fontutils-api.h
  * \date 2024-03-21
- * \authors Alessandro Bridi [ale.bridi15@gmail.com]
+ * \author Alessandro Bridi [ale.bridi15@gmail.com]
  *
- * \brief FontUtils APIs functions implementations
+ * \brief Public glyph rendering API.
  *
- * \details A rasterizer is a software renderer that works by writing pixels to
- *      a framebuffer.
- *      This implementation lets the user define 3 callbacks that defines the
- *      technique used to write them, so that hardware accelerators can be used
- *      to archive big speedups.
+ * \details Renders text by walking a glyph's RLE-compressed SDF data and
+ *     emitting filled rectangles through the user-provided callback. Scaling
+ *     uses Q16 fixed-point arithmetic, with a fast path when the requested
+ *     pixel size matches the font's native size.
  */
 
 #ifndef FONTUTILS_API_H
 #define FONTUTILS_API_H
 
 #include "fontutils.h"
-#include "fonts.h"
 
 /*!
- * \brief Draws text
+ * \brief Render a string at the given anchor position.
  *
- * \details This function puts together all the functionalities offered by the
- *      file to give a clear and simple API used to draw text in a framebuffer.
+ * \param[in] x          Anchor X position. Interpretation depends on \p align.
+ * \param[in] y          Top Y position of the rendered text.
+ * \param[in] align      Horizontal alignment of the text relative to (x, y).
+ * \param[in] font       Font to render with.
+ * \param[in] text       NUL-terminated string to render.
+ * \param[in] color      Base color; the alpha channel is replaced per pixel
+ *                       by the glyph's coverage value.
+ * \param[in] pixel_size Target pixel height of the rendered text.
+ * \param[in] draw       Rectangle-fill callback used for every glyph span.
  *
- * \param[in] x Position on x axis in buffer
- * \param[in] y Position on y axis in buffer
- * \param[in] align Alignment on x axis
- * \param[in] font Font name described (uppercase)
- * \param[in] text Pointer to text to draw
- * \param[in] color ARGB color value (alpha is ignored)
- * \param[in] size Of which size (vertically) the text is to be rendere
- * \param[in] line_callback Callback used to draw a line
- *
- * \retval FONT_RC_OK if the text was drawn successfully
- * \retval FONT_RC_ERROR if there was an error drawing the text
- * \retval FONT_RC_NULL_POINTER if the text pointer is NULL
+ * \retval RASTER_RC_OK if rendering succeeded (or the string was empty).
+ * \retval RASTER_RC_NULL_POINTER if \p font, \p text, or \p draw is NULL.
+ * \retval RASTER_RC_ERROR if the draw callback reported an error.
  */
-enum FontReturnCode font_api_draw(uint16_t x, uint16_t y, enum FontAlign align, enum FontName font, const char *__restrict__ text, struct Color color, uint16_t size, font_draw_line_callback line_callback);
+enum RasterReturnCode font_api_draw(uint16_t x, uint16_t y, enum FontAlign align, const struct Font *font, const char *text, struct Color color, uint16_t pixel_size, raster_draw_rectangle_callback draw);
 
 /*!
- * \brief Calculate the length of the text in pixel
+ * \brief Compute the rendered pixel width of a string.
  *
- * \details Based on text, scaling and font calculates the length of the
- *      rendered text. This is useful to align horizontally the text.
+ * \param[in] text       NUL-terminated string to measure.
+ * \param[in] pixel_size Target pixel height.
+ * \param[in] font       Font to measure with.
  *
- * \param[in] text The string to be rendered
- * \param[in] size Of which size (vertically) the text is to be rendered
- * \param[in] font Which font to be used
- *
- * \return The length of the text in pixel, 0 if the text is NULL or empty
+ * \return Width in pixels, or 0 if any argument is invalid or the string is empty.
  */
-uint16_t font_api_length(const char *__restrict__ text, uint16_t size, enum FontName font);
+uint16_t font_api_length(const char *text, uint16_t pixel_size, const struct Font *font);
 
 #endif // FONTUTILS_API_H

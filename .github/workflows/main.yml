@@ -39,7 +39,9 @@ jobs:
       - name: Run Unit Tests (or generate minimal .ini)
         run: |
           if [ ! -f "platformio.ini" ]; then
-            printf "[env:latest_stable]\nplatform = native\nlib_deps = Unity, ./\n" > platformio.ini
+            printf "[env:latest_stable]\n" > platformio.ini
+            printf "platform = native\n" >> platformio.ini
+            printf "lib_deps = Unity, ./\n" >> platformio.ini
             echo "Created platformio.ini"
           fi
           pio test -e latest_stable
@@ -85,7 +87,9 @@ jobs:
       - name: Run Static Code Analysis
         run: |
           if [ ! -f "platformio.ini" ]; then
-            printf "[env:latest_stable]\nplatform = native\nlib_deps = Unity, ./\n" > platformio.ini
+            printf "[env:latest_stable]\n" > platformio.ini
+            printf "platform = native\n" >> platformio.ini
+            printf" lib_deps = Unity, ./\n" >> platformio.ini
             echo "Created platformio.ini"
           fi
           pio check

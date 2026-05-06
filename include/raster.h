@@ -3,38 +3,32 @@
  * \date 2024-12-13
  * \author Alessandro Bridi [ale.bridi15@gmail.com]
  *
- * \brief Graphics handling structures and types
+ * \brief Box and label structures used to describe a raster interface.
+ *
+ * \details An interface is a flat array of RasterBox. Each box owns its
+ *     rectangle and an optional label. The library renders the interface
+ *     using a single user-provided rectangle-fill callback.
  */
 
 #ifndef RASTER_H
 #define RASTER_H
 
+#include "fontutils.h"
 #include <stdbool.h>
 #include <stdint.h>
-#include "fontutils.h"
-#include "fonts.h"
 
 /*!
- * \brief Return codes for raster operations
- */
-enum RasterReturnCode {
-    RASTER_RC_OK,           /*!< Operation successful */
-    RASTER_RC_ERROR,        /*!< General error */
-    RASTER_RC_NULL_POINTER, /*!< Null pointer error */
-};
-
-/*!
- * \brief Represents a rectangle area
+ * \brief A rectangle in pixel coordinates.
  */
 struct RasterRect {
-    uint16_t x; /*!< X position of the rectangle */
-    uint16_t y; /*!< Y position of the rectangle */
-    uint16_t w; /*!< Width of the rectangle */
-    uint16_t h; /*!< Height of the rectangle */
+    uint16_t x; /*!< Top-left X position */
+    uint16_t y; /*!< Top-left Y position */
+    uint16_t w; /*!< Width in pixels */
+    uint16_t h; /*!< Height in pixels */
 };
 
 /*!
- * \brief Represents a pair of coordinates
+ * \brief A pair of pixel coordinates.
  */
 struct RasterCoords {
     uint16_t x; /*!< X position in pixels */
@@ -42,114 +36,87 @@ struct RasterCoords {
 };
 
 /*!
- * \brief Union to hold different types of label values
- */
-union RasterLabelData {
-    char *text;      /*!< Text to display */
-    int32_t int_val; /*!< Integer value to display */
-    float float_val; /*!< Float value to display */
-};
-
-/*!
- * \brief Defines the data type to display
+ * \brief Discriminator for the value stored in a RasterLabel.
  */
 enum RasterLabelDataType {
-    LABEL_DATA_STRING, /*!< Text value type */
-    LABEL_DATA_INT,    /*!< Integer value type */
-    LABEL_DATA_FLOAT   /*!< Float value type */
+    RASTER_LABEL_DATA_STRING, /*!< Label holds a C string */
+    RASTER_LABEL_DATA_INT,    /*!< Label holds a 32-bit integer */
+    RASTER_LABEL_DATA_FLOAT,  /*!< Label holds a single-precision float */
 };
 
 /*!
- * \brief Formatting options for integer values
+ * \brief Active member of RasterLabel::data.
+ */
+union RasterLabelData {
+    char *text;      /*!< Used when type == LABEL_DATA_STRING */
+    int32_t int_val; /*!< Used when type == LABEL_DATA_INT */
+    float float_val; /*!< Used when type == LABEL_DATA_FLOAT */
+};
+
+/*!
+ * \brief Formatting options for integer labels.
  */
 struct RasterIntFormat {
-    bool is_unsigned; /*!< Treat as unsigned integer */
+    bool is_unsigned; /*!< Treat the value as unsigned */
 };
 
 /*!
- * \brief Formatting options for floating-point values
+ * \brief Formatting options for float labels.
  */
 struct RasterFloatFormat {
-    uint8_t precision; /*!< Number of digits after decimal point */
+    uint8_t precision; /*!< Digits after the decimal point */
 };
 
 /*!
- * \brief Formatting options for string values
+ * \brief Formatting options for string labels.
  */
 struct RasterStringFormat {
-    uint16_t max_length; /*!< Maximum string length (0 for no limit) */
+    uint16_t max_length; /*!< Truncation length, 0 means no limit */
 };
 
 /*!
- * \brief Union of formatting options for different data types
+ * \brief Active member of RasterLabel::format.
  */
 union RasterLabelFormat {
-    struct RasterIntFormat int_fmt;       /*!< Integer formatting options */
-    struct RasterFloatFormat float_fmt;   /*!< Float formatting options */
-    struct RasterStringFormat string_fmt; /*!< String formatting options */
+    struct RasterIntFormat int_fmt;
+    struct RasterFloatFormat float_fmt;
+    struct RasterStringFormat string_fmt;
 };
 
 /*!
- * \brief Function used to draw a rectangle on screen
- * 
- * \details This callback function is used to draw a filled rectangle
- *
- * \param[in] x X position of the rectangle
- * \param[in] y Y position of the rectangle
- * \param[in] w Width of the rectangle
- * \param[in] h Height of the rectangle
- * \param[in] color Color of the rectangle, ARGB format
- *
- * \retval RASTER_RC_OK if the rectangle was drawn successfully
- * \retval RASTER_RC_ERROR if there was an error drawing the rectangle
- */
-typedef enum RasterReturnCode (*raster_draw_rectangle_callback)(uint16_t x, uint16_t y, uint16_t w, uint16_t h, struct Color color);
-
-/*!
- * \brief Function used to clear the screen
- * 
- * \details This callback function is used to clear the whole screen
- *
- * \retval RASTER_RC_OK if the screen was cleared successfully
- * \retval RASTER_RC_ERROR if there was an error clearing the screen
- */
-typedef enum RasterReturnCode (*raster_clear_screen_callback)(void);
-
-/*!
- * \brief Defines a label to be drawn on screen
+ * \brief A drawable text element rendered inside a box.
  */
 struct RasterLabel {
-    union RasterLabelData data;     /*!< Content of the label */
-    enum RasterLabelDataType type;  /*!< Type of the label content */
-    union RasterLabelFormat format; /*!< Formatting options for the label */
-    struct RasterCoords pos;        /*!< Position to draw the label */
-    enum FontName font;             /*!< Font name, defined in font.h */
-    uint16_t size;                  /*!< Size of the text */
-    enum FontAlign align;           /*!< Alignement of the text relative to coords */
-    struct Color color;             /*!< Color of the text */
+    union RasterLabelData data;     /*!< Value to display */
+    enum RasterLabelDataType type;  /*!< Discriminator for \c data and \c format */
+    union RasterLabelFormat format; /*!< Formatting options for \c data */
+    struct RasterCoords pos;        /*!< Anchor position relative to the box */
+    const struct Font *font;        /*!< Font to render with */
+    uint16_t size;                  /*!< Pixel height of the text */
+    enum FontAlign align;           /*!< Horizontal alignment around \c pos */
+    struct Color color;             /*!< Text color */
 };
 
 /*!
- * \brief Defines a text box to be drawn on screen
+ * \brief A rectangle filled with a background color and an optional label.
  */
 struct RasterBox {
-    bool updated;              /*!< Flag to indicate if the box needs to be redrawn */
-    uint16_t id;               /*!< Unique identifier for the box */
-    struct RasterRect rect;    /*!< Rectangle area of the box */
-    struct Color color;        /*!< Default background color of the box (ARGB format) */
-    struct RasterLabel *label; /*!< Pointer to a Label structure (can be NULL) */
+    bool updated;              /*!< Set to true to request a redraw on the next render */
+    uint16_t id;               /*!< Caller-defined identifier */
+    struct RasterRect rect;    /*!< Box geometry on screen */
+    struct Color color;        /*!< Background color */
+    struct RasterLabel *label; /*!< Optional label, NULL for an empty box */
 };
 
 /*!
- * \brief Handler for raster operations
+ * \brief Top-level handle bundling an interface and the rendering callbacks.
  */
 struct RasterHandler {
-    struct RasterBox *interface; /*!< Pointer to an array of RasterBox structures */
-    uint16_t size;               /*!< Number of boxes in the interface array */
+    struct RasterBox *interface; /*!< Currently mounted interface */
+    uint16_t size;               /*!< Number of boxes in \c interface */
 
-    font_draw_line_callback draw_line;             /*!< Callback to draw a horizontal line */
-    raster_draw_rectangle_callback draw_rectangle; /*!< Callback to draw a filled rectangle */
-    raster_clear_screen_callback clear_screen;     /*!< Callback to clear the screen */
+    raster_draw_rectangle_callback draw; /*!< Required: rectangle-fill callback */
+    raster_clear_screen_callback clear;  /*!< Optional unless RASTER_PARTIAL == 0 */
 };
 
 #endif // RASTER_H

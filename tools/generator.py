@@ -1,187 +1,210 @@
-import os
+"""Font generator for libraster-sw.
+
+Reads a JSON descriptor of fonts to rasterize, builds an SDF for every
+requested character, run-length encodes the result, and emits a pair of
+C/H files that the user's project compiles alongside libraster.
+
+Usage:
+    python tools/generator.py --json path/to/fonts.json --output path/to/dir
+
+The output directory will contain `fonts.c` and `fonts.h`. The library
+itself never embeds these files: include the generated header from your
+source and add the generated `.c` to your build.
+"""
+
+import argparse
+import datetime
+import json
+import logging
+import sys
+from pathlib import Path
+
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 from scipy.ndimage import distance_transform_edt
-import json
-import datetime
-import argparse
-from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
-import logging
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--json", type=Path, default=Path(__file__).parent
-                    / "fonts.json")
-args = parser.parse_args()
+SCRIPT_DIR = Path(__file__).resolve().parent
+
+logger = logging.getLogger("libraster-generator")
 
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-json_base = args.json.parent
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--json",
+        type=Path,
+        default=SCRIPT_DIR / "fonts.json",
+        help="Path to the fonts.json descriptor.",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="Directory where fonts.c and fonts.h will be written. "
+             "Defaults to the directory containing the JSON file.",
+    )
+    return parser.parse_args()
 
 
-def compress_rle_4bit_paired(data):
-    compressed = []
+def parse_char_set(pattern: str) -> list[str]:
+    """Expand patterns like 'A-Za-z0-9 .' into a sorted, deduped list of chars."""
+    chars: list[str] = []
+    last = None
     i = 0
-    while i < len(data):
+    while i < len(pattern):
+        c = pattern[i]
+        if c == '-' and last is not None and i + 1 < len(pattern):
+            start = ord(last)
+            end = ord(pattern[i + 1])
+            if start < end:
+                chars.extend(chr(code) for code in range(start + 1, end + 1))
+            last = pattern[i + 1]
+            chars.append(last)
+            i += 2
+            continue
+        chars.append(c)
+        last = c
+        i += 1
+    return sorted(set(chars))
+
+
+def smoothstep(edge0: float, edge1: float, x: np.ndarray) -> np.ndarray:
+    t = np.clip((x - edge0) / (edge1 - edge0), 0, 1)
+    return t * t * (3 - 2 * t)
+
+
+def compute_sdf(bitmap: np.ndarray, edge0: float, edge1: float) -> np.ndarray:
+    inside = distance_transform_edt(bitmap)
+    outside = distance_transform_edt(1 - bitmap)
+    sdf = inside - outside
+    normalized = np.clip((sdf + 3) / 6, 0, 1)
+    return (smoothstep(edge0, edge1, normalized) * 255).astype(np.uint8)
+
+
+def compress_rle_4bit_paired(data: list[int]) -> list[tuple[int, int, int]]:
+    """Compress an alpha stream into (packed_value, count1, count2) triplets.
+
+    Each triplet packs two 4-bit alpha values and their run lengths. The high
+    nibble belongs to the first run, the low nibble to the second. Counts
+    are bounded to 255.
+    """
+    out: list[tuple[int, int, int]] = []
+    i = 0
+    n = len(data)
+    while i < n:
         sdf1 = data[i] // 16
         count1 = 1
         i += 1
-        while i < len(data) and data[i] // 16 == sdf1 and count1 < 255:
+        while i < n and data[i] // 16 == sdf1 and count1 < 255:
             count1 += 1
             i += 1
-        if i < len(data):
+        if i < n:
             sdf2 = data[i] // 16
             count2 = 1
             i += 1
-            while i < len(data) and data[i] // 16 == sdf2 and count2 < 255:
+            while i < n and data[i] // 16 == sdf2 and count2 < 255:
                 count2 += 1
                 i += 1
         else:
+            sdf2 = 0
             count2 = 0
-        compressed.append(((sdf1 << 4) | sdf2, count1, count2))
-    return compressed
+        out.append(((sdf1 << 4) | sdf2, count1, count2))
+    return out
 
 
-def generate_bitmaps(fonts):
-    def smoothstep(edge0, edge1, x):
-        t = np.clip((x - edge0) / (edge1 - edge0), 0, 1)
-        return t * t * (3 - 2 * t)
-
-    def compute_sdf(bitmap, edge0, edge1):
-        inside = distance_transform_edt(bitmap)
-        outside = distance_transform_edt(1 - bitmap)
-        sdf = inside - outside
-        normalized_sdf = np.clip((sdf + 3) / 6, 0, 1)
-        normalized_sdf = smoothstep(edge0, edge1, normalized_sdf) * 255
-        return normalized_sdf.astype(np.uint8)
-
-    def parse_char_set(pattern: str) -> list[str]:
-        chars = []
-        last = None
-
-        i = 0
-        while i < len(pattern):
-            c = pattern[i]
-
-            if c == '-' and last is not None and i + 1 < len(pattern):
-                start = ord(last)
-                end = ord(pattern[i + 1])
-
-                if start < end:
-                    chars.extend(chr(code) for code in
-                                 range(start + 1, end + 1))
-
-                last = pattern[i + 1]
-                chars.append(last)
-                i += 2
-                continue
-            else:
-                chars.append(c)
-                last = c
-
-            i += 1
-
-        return sorted(set(chars))
-
-    sdf_datas = []
-    glyph_metadatas = []
-
-    for font_json in fonts:
-        font = ImageFont.truetype(os.path.join(json_base, font_json["font"]),
-                                  font_json["size"])
-
-        ascent, descent = font.getmetrics()
-        total_height = ascent + descent
-
-        font_sdf_data = []
-        font_glyph_metadata = []
-
-        characters = parse_char_set(font_json["characters"])
-
-        for char in characters:
-            bbox = font.getbbox(char, anchor="ls")
-            char_width = bbox[2] - bbox[0]
-
-            image = Image.new("L", (char_width, total_height), 0)
-            draw = ImageDraw.Draw(image)
-
-            x_offset = -bbox[0]
-            y_offset = ascent
-            draw.text((x_offset, y_offset), char, fill=255,
-                      font=font, anchor="ls")
-
-            bitmap = np.array(image) > 128
-            sdf = compute_sdf(bitmap, font_json["edges"][0],
-                              font_json["edges"][1])
-            sdf_image = Image.fromarray(sdf)
-
-            width, height = sdf_image.size
-            pixels = list(sdf_image.getdata())
-            compressed = compress_rle_4bit_paired(pixels)
-            offset = len(font_sdf_data)
-
-            # Append SDF data
-            font_sdf_data.extend([item for pair in compressed
-                                  for item in pair])
-            if char == '\'':
-                char = '\\' + char
-            font_glyph_metadata.append(
-                (offset, len(compressed) * 3, width, height, char))
-
-        sdf_datas.append(font_sdf_data)
-        glyph_metadatas.append(font_glyph_metadata)
-
-    return sdf_datas, glyph_metadatas
+def render_glyph(font: ImageFont.FreeTypeFont, char: str, total_height: int, ascent: int) -> tuple[np.ndarray, int, int]:
+    """Render a single character into a uint8 bitmap and return (bitmap, w, h)."""
+    bbox = font.getbbox(char, anchor="ls")
+    width = bbox[2] - bbox[0]
+    image = Image.new("L", (width, total_height), 0)
+    draw = ImageDraw.Draw(image)
+    draw.text((-bbox[0], ascent), char, fill=255, font=font, anchor="ls")
+    return np.array(image), width, total_height
 
 
-def generate_c_files(fonts, logger):
-    c_file_path = os.path.join(SCRIPT_DIR, "..", "src", "fonts.c")
-    h_file_path = os.path.join(SCRIPT_DIR, "..", "include", "fonts.h")
+def build_font_data(font_json: dict, json_dir: Path) -> dict:
+    """Build per-font payload (sdf bytes, glyph metadata, base size)."""
+    ttf_path = json_dir / font_json["font"]
+    pil_font = ImageFont.truetype(str(ttf_path), font_json["size"])
 
-    datetime_info = datetime.datetime.today().strftime("%H:%M:%S  %d/%m/%Y")
+    ascent, descent = pil_font.getmetrics()
+    total_height = ascent + descent
 
-    env = Environment(loader=FileSystemLoader(SCRIPT_DIR))
-    c_template = env.get_template("templates/fonts.c.j2")
-    rendered = c_template.render(datetime_info=datetime_info, fonts=fonts)
-    with open(c_file_path, "w") as c_file:
-        c_file.write(rendered)
-    logger.info(f"Generated {c_file_path}")
+    chars = parse_char_set(font_json["characters"])
+    edge0, edge1 = font_json["edges"]
 
-    h_template = env.get_template("templates/fonts.h.j2")
-    rendered = h_template.render(datetime_info=datetime_info, fonts=fonts)
-    with open(h_file_path, "w") as h_file:
-        h_file.write(rendered)
-    logger.info(f"Generated {h_file_path}")
+    sdf_stream: list[int] = []
+    glyphs: list[dict] = []
+
+    for char in chars:
+        bitmap_8bit, width, height = render_glyph(
+            pil_font, char, total_height, ascent)
+        bitmap = bitmap_8bit > 128
+        sdf = compute_sdf(bitmap, edge0, edge1)
+        pixels = list(sdf.flatten())
+        compressed = compress_rle_4bit_paired(pixels)
+
+        offset = len(sdf_stream)
+        sdf_stream.extend(item for triplet in compressed for item in triplet)
+
+        # Escape characters that would break the C literal.
+        if char == "'" or char == '\\':
+            char_literal = "\\" + char
+        else:
+            char_literal = char
+
+        glyphs.append({
+            "char": char_literal,
+            "offset": offset,
+            "size": len(compressed) * 3,
+            "width": width,
+            "height": height,
+        })
+
+    return {
+        "name": font_json["name"],
+        "base_size": total_height,
+        "sdfs": sdf_stream,
+        "glyphs": glyphs,
+    }
 
 
-def main():
-    logger = logging.getLogger("font-generator")
-    logging.basicConfig(encoding='utf-8', level=logging.INFO)
+def render_templates(fonts: list[dict], output_dir: Path) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    env = Environment(loader=FileSystemLoader(
+        str(SCRIPT_DIR)), keep_trailing_newline=True)
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    with open(os.path.join(json_base, "fonts.json")) as json_data:
-        fonts = json.load(json_data)
+    for src_name, dst_name in (("fonts.c.j2", "fonts.c"), ("fonts.h.j2", "fonts.h")):
+        template = env.get_template(f"templates/{src_name}")
+        rendered = template.render(timestamp=timestamp, fonts=fonts)
+        out_path = output_dir / dst_name
+        out_path.write_text(rendered)
+        logger.info("wrote %s", out_path)
 
-        logger.info("bitmap generation")
-        sdfs, glyphs = generate_bitmaps(fonts)
-        for i, font in enumerate(fonts):
-            font["sdfs"] = sdfs[i]
-            font["glyphs"] = [
-                {
-                    "offset": g[0],
-                    "size": g[1],
-                    "width": g[2],
-                    "height": g[3],
-                    "char": g[4]
-                }
-                for g in glyphs[i]
-            ]
 
-        logger.info("C and H generation")
-        generate_c_files(fonts, logger)
+def main() -> int:
+    logging.basicConfig(level=logging.INFO, format="[generator] %(message)s")
+    args = parse_args()
 
-        logger.info("ok")
+    json_path: Path = args.json
+    if not json_path.is_file():
+        logger.error("fonts.json not found at %s", json_path)
+        return 1
+
+    output_dir: Path = args.output if args.output is not None else json_path.parent
+
+    with json_path.open("r", encoding="utf-8") as fp:
+        descriptor = json.load(fp)
+
+    fonts = [build_font_data(entry, json_path.parent) for entry in descriptor]
+
+    render_templates(fonts, output_dir)
+    logger.info("done")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

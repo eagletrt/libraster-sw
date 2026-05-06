@@ -3,13 +3,12 @@
  * \date 2025-03-21
  * \author Alessandro Bridi [ale.bridi15@gmail.com]
  *
- * \brief LibRaster API functions
+ * \brief LibRaster public API.
  *
- * \details A rasterizer is a software renderer that works by writing pixels to
- *      a framebuffer.
- *      This implementation lets the user define 3 callbacks that defines the
- *      technique used to write them, so that hardware accelerators can be used
- *      to archive big speedups.
+ * \details A rasterizer is a software renderer that writes pixels to a
+ *     framebuffer. Libraster lets the user define a single rectangle-fill
+ *     callback so that hardware accelerators (e.g. STM32 DMA2D) can be
+ *     used transparently. No dynamic allocation is performed.
  */
 
 #ifndef RASTER_API_H
@@ -18,167 +17,171 @@
 #include "raster.h"
 
 /*!
- * \brief Initializes the RasterHandler struct
+ * \brief Initialize a RasterHandler.
  *
- * \details Sets the callbacks inside the RasterHandler struct
- *     passed as argument.
- *     Clear screen callback is optional, and can be set to NULL when RASTER_PARTIAL
- *     is equal to 1.
+ * \details The clear callback may be NULL when RASTER_PARTIAL == 1 (the default).
  *
- * \param[out] hras Pointer to the RasterHandler struct to initialize
- * \param[in] interface Pointer to the defined interface
- * \param[in] size Number of boxes in the interface
- * \param[in] draw_line Draw line callback
- * \param[in] draw_rectangle Draw rectangle callback
- * \param[in] clear_screen Clear screen callback
+ * \param[out] handler   Handler to initialize.
+ * \param[in]  interface Interface to mount.
+ * \param[in]  size      Number of boxes in \p interface.
+ * \param[in]  draw      Rectangle-fill callback.
+ * \param[in]  clear     Clear-screen callback. Required only when RASTER_PARTIAL is 0.
  *
- * \retval RASTER_RC_OK if the handler was initialized successfully
- * \retval RASTER_RC_NULL_POINTER if the hras pointer is NULL
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_NULL_POINTER if \p handler, \p interface, or \p draw is NULL,
+ *     or if \p size is 0.
  */
-enum RasterReturnCode raster_api_init(struct RasterHandler *hras, struct RasterBox *interface, uint16_t size, font_draw_line_callback draw_line, raster_draw_rectangle_callback draw_rectangle, raster_clear_screen_callback clear_screen);
+enum RasterReturnCode raster_api_init(struct RasterHandler *handler, struct RasterBox *interface, uint16_t size, raster_draw_rectangle_callback draw, raster_clear_screen_callback clear);
 
 /*!
- * \brief Sets the interface inside the RasterHandler struct
+ * \brief Replace the interface mounted on a handler.
  *
- * \details Sets the interface and size inside the RasterHandler struct
- *     passed as argument.
+ * \details Useful for swapping screens (main view, popup, menu...).
  *
- * \param[out] hras Pointer to the RasterHandler struct to modify
- * \param[in] interface Pointer to the defined interface
- * \param[in] size Number of boxes in the interface
+ * \param[in,out] handler   Handler to update.
+ * \param[in]     interface New interface to mount.
+ * \param[in]     size      Number of boxes in \p interface.
  *
- * \retval RASTER_RC_OK if the interface was set successfully
- * \retval RASTER_RC_NULL_POINTER if the hras pointer is NULL
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_NULL_POINTER if \p handler or \p interface is NULL.
  */
-enum RasterReturnCode raster_api_set_interface(struct RasterHandler *hras, struct RasterBox *interface, uint16_t size);
+enum RasterReturnCode raster_api_set_interface(struct RasterHandler *handler, struct RasterBox *interface, uint16_t size);
 
 /*!
- * \brief Renders the whole interface
+ * \brief Render the current interface.
  *
- * \details For every box, draws it using the callbacks that are passed
- *      as arguments to the function.
+ * \details Behavior depends on RASTER_PARTIAL:
+ *     - When 1 (default): only boxes whose `updated` flag is set are
+ *       redrawn, and the flag is cleared after a successful redraw.
+ *     - When 0: the screen is cleared and every box is drawn.
  *
- *      The signature of the function changes based on the \c RASTER_PARTIAL
- *      env variable, adding or removing the \c clear_screen callback.
+ * \param[in] handler Handler to render.
  *
- * \param[in] hras Pointer to the RasterHandler struct to use
- * \param[in] boxes Pointer to the defined interface
- * \param[in] num Number of boxes in the interface
- *
- * \retval RASTER_RC_OK if the interface was rendered successfully
- * \retval RASTER_RC_NULL_POINTER if the hras pointer is NULL
- * \retval RASTER_RC_ERROR if there was an error during rendering
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_NULL_POINTER if \p handler is NULL.
+ * \retval RASTER_RC_ERROR if a callback reported an error.
  */
-enum RasterReturnCode raster_api_render(struct RasterHandler *hras);
+enum RasterReturnCode raster_api_render(struct RasterHandler *handler);
 
 /*!
- * \brief Utility to get a Box based on id value
+ * \brief Find a box by id within a flat array.
  *
- * \details Used to retrieve a specific box that needs to be modified.
+ * \details Linear search; convenient for small interfaces (the typical case
+ *     for embedded UIs) and decoupled from any particular handler.
  *
- * /param[in] hras Pointer to the RasterHandler struct to use
- * \param[in] id ID of the box to search for
+ * \param[in] boxes Array to search.
+ * \param[in] size  Number of entries in \p boxes.
+ * \param[in] id    Identifier to look up.
  *
- * \return struct Box*
- *     - Box pointer if found
- *     - NULL if not found
+ * \return Pointer to the matching box, or NULL if no box has that id.
  */
-struct RasterBox *raster_api_get_box(struct RasterHandler *hras, uint16_t id);
+struct RasterBox *raster_api_get_box(struct RasterBox *boxes, uint16_t size, uint16_t id);
 
 /*!
- * \brief Utility to create a string label
+ * \brief Initialize a RasterLabel from explicit components.
  *
- * \param[out] label Pointer to the RasterLabel struct to initialize
- * \param[in] text Text content of the label
- * \param[in] max_length Maximum length of the text (0 for no limit)
- * \param[in] pos Position to draw the label
- * \param[in] font Font name, defined in font.h
- * \param[in] size Size of the text
- * \param[in] align Alignement of the text relative to coords
- * \param[in] color Color of the text
+ * \details The data, type, and format must be consistent with each other.
+ *     For most cases you can construct the format union with the
+ *     raster_api_*_format helpers, or simply use a designated initializer
+ *     directly on the RasterLabel.
  *
- * \retval RASTER_RC_OK if the label was created successfully
- * \retval RASTER_RC_NULL_POINTER if the label pointer is NULL
+ * \param[out] label   Label to initialize.
+ * \param[in]  data    Initial value.
+ * \param[in]  type    Type of the value.
+ * \param[in]  format  Formatting options.
+ * \param[in]  pos     Position of the label within its box, in pixels.
+ * \param[in]  font    Font to use for rendering the label.
+ * \param[in]  size    Font size to use for rendering the label.
+ * \param[in]  align   Alignment of the label within its box.
+ * \param[in]  color   Color to use for rendering the label.
+ *
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_NULL_POINTER if \p label is NULL or \p font is NULL.
  */
-enum RasterReturnCode raster_api_create_string_label(struct RasterLabel *label, char *text, uint16_t max_length, struct RasterCoords pos, enum FontName font, uint16_t size, enum FontAlign align, struct Color color);
+enum RasterReturnCode raster_api_create_label(struct RasterLabel *label, union RasterLabelData data, enum RasterLabelDataType type, union RasterLabelFormat format, struct RasterCoords pos, const struct Font *font, uint16_t size, enum FontAlign align, struct Color color);
 
 /*!
- * \brief Utility to create an integer label
+ * \brief Update the value of a label and mark its box for redraw.
  *
- * \param[out] label Pointer to the RasterLabel struct to initialize
- * \param[in] value Integer value of the label
- * \param[in] is_unsigned Treat the value as unsigned integer
- * \param[in] pos Position to draw the label
- * \param[in] font Font name, defined in font.h
- * \param[in] size Size of the text
- * \param[in] align Alignement of the text relative to coords
- * \param[in] color Color of the text
+ * \details The label keeps its current type. The data union member must
+ *     match the existing type — these helpers do not change the type.
  *
- * \retval RASTER_RC_OK if the label was created successfully
- * \retval RASTER_RC_NULL_POINTER if the label pointer is NULL
+ * \param[in,out] box   Box owning the label to update.
+ * \param[in]     data  New value.
+ *
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_NULL_POINTER if \p box or \p box->label is NULL.
  */
-enum RasterReturnCode raster_api_create_int_label(struct RasterLabel *label, int32_t value, bool is_unsigned, struct RasterCoords pos, enum FontName font, uint16_t size, enum FontAlign align, struct Color color);
+enum RasterReturnCode raster_api_set_label_data(struct RasterBox *box, union RasterLabelData data);
+
+/*! 
+ * \brief Convenience wrapper around raster_api_set_label_data for strings.
+ *
+ * \param[in,out] box   Box owning the label to update.
+ * \param[in]     text  New string value. The label will point to this string, so it must remain valid as long as the label needs it.
+ *
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_NULL_POINTER if \p box or \p box->label is NULL.
+ */
+enum RasterReturnCode raster_api_set_label_text(struct RasterBox *box, char *text);
 
 /*!
- * \brief Utility to create a float label
+ * \brief Convenience wrapper around raster_api_set_label_data for integers.
  *
- * \param[out] label Pointer to the RasterLabel struct to initialize
- * \param[in] value Float value of the label
- * \param[in] precision Number of digits after decimal point
- * \param[in] pos Position to draw the label
- * \param[in] font Font name, defined in font.h
- * \param[in] size Size of the text
- * \param[in] align Alignement of the text relative to coords
- * \param[in] color Color of the text
+ * \param[in,out] box   Box owning the label to update.
+ * \param[in]     value New integer value.
  *
- * \retval RASTER_RC_OK if the label was created successfully
- * \retval RASTER_RC_NULL_POINTER if the label pointer is NUL
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_NULL_POINTER if \p box or \p box->label is
  */
-enum RasterReturnCode raster_api_create_float_label(struct RasterLabel *label, float value, uint8_t precision, struct RasterCoords pos, enum FontName font, uint16_t size, enum FontAlign align, struct Color color);
+enum RasterReturnCode raster_api_set_label_int(struct RasterBox *box, int32_t value);
 
 /*!
- * \brief Utility to set label data inside a Box
+ * \brief Convenience wrapper around raster_api_set_label_data for floats.
  *
- * \param[in,out] box The box to modify
- * \param[in] value Union of possible value types
+ * \param[in,out] box   Box owning the label to update.
+ * \param[in]     value New float value.
  *
- * \retval RASTER_RC_OK if the label data was set successfully
- * \retval RASTER_RC_NULL_POINTER if the box pointer is NULL or box->format is STRING and value.text is NULL
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_NULL_POINTER if \p box or \p box->label is
  */
-enum RasterReturnCode raster_api_set_label_data(struct RasterBox *box, union RasterLabelData value);
+enum RasterReturnCode raster_api_set_label_float(struct RasterBox *box, float value);
 
 /*!
- * \brief Utility to update label formatting options
+ * \brief Update the formatting options of a label and mark its box for redraw.
  *
- * \param[in,out] box The box to modify
- * \param[in] format Formatting options for the value
+ * \param[in,out] box     Box owning the label to update.
+ * \param[in]     format  New formatting options.
  *
- * \retval RASTER_RC_OK if the label format was set successfully
- * \retval RASTER_RC_NULL_POINTER if the box pointer is NULL
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_NULL_POINTER if \p box or \p box->label is NULL.
  */
 enum RasterReturnCode raster_api_set_label_format(struct RasterBox *box, union RasterLabelFormat format);
 
 /*!
- * \brief Helper to create default integer formatting options
+ * \brief Build a RasterIntFormat.
  *
- * \param[in] is_unsigned Treat as unsigned integer
- * \return struct RasterIntFormat with specified options
+ * \param[in] is_unsigned Whether the integer is unsigned (true) or signed (false).
+ *
+ * \return A RasterIntFormat with the specified properties.
  */
 struct RasterIntFormat raster_api_int_format(bool is_unsigned);
 
 /*!
- * \brief Helper to create default float formatting options
+ * \brief Build a RasterFloatFormat.
  *
- * \param[in] precision Number of digits after decimal point
- * \return struct RasterFloatFormat with specified options
+ * \param[in] precision Number of decimal places to display.
+ *
+ * \return A RasterFloatFormat with the specified properties.
  */
 struct RasterFloatFormat raster_api_float_format(uint8_t precision);
 
 /*!
- * \brief Helper to create default string formatting options
+ * \brief Build a RasterStringFormat.
  *
- * \param[in] max_length Maximum string length (0 for no limit)
- * \return struct RasterStringFormat with specified options
+ * \param[in] max_length Maximum number of characters to display. Longer strings will be truncated.
+ *
+ * \return A RasterStringFormat with the specified properties.
  */
 struct RasterStringFormat raster_api_string_format(uint16_t max_length);
 
