@@ -52,7 +52,7 @@ jobs:
           python tools/generator.py --json tools/fonts.json --output tools/generated
           pio ci -l . \
               -O "framework=stm32cube" \
-              -O "build_flags=-Itools/generated" \
+              -O "build_flags=-I$(pwd)/tools/generated" \
               examples/direct-font-rendering.c tools/generated/fonts.c \
               -b nucleo_h723zg
 

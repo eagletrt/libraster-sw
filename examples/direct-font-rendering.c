@@ -18,6 +18,7 @@
 #include "fonts.h"
 #include "raster-api.h"
 #include <stdint.h>
+#include <stddef.h>
 
 #define WINDOW_WIDTH (800u)
 #define WINDOW_HEIGHT (480u)
