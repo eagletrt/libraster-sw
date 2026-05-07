@@ -87,11 +87,6 @@ struct RasterBox *raster_api_get_box(struct RasterBox *boxes, uint16_t size, uin
 /*!
  * \brief Initialize a RasterLabel from explicit components.
  *
- * \details The data, type, and format must be consistent with each other.
- *     For most cases you can construct the format union with the
- *     raster_api_*_format helpers, or use a designated initializer
- *     directly on the RasterLabel.
- *
  * \param[out] label  Label to initialize.
  * \param[in]  data   Initial value.
  * \param[in]  type   Discriminator for \p data and \p format.
@@ -107,33 +102,7 @@ struct RasterBox *raster_api_get_box(struct RasterBox *boxes, uint16_t size, uin
 enum RasterReturnCode raster_api_create_label(struct RasterLabel *label, union RasterLabelData data, enum RasterLabelDataType type, struct RasterCoords pos, const struct Font *font, uint16_t size, enum FontAlign align, struct Color color);
 
 /*!
- * \brief Update the value of a label and mark its box for redraw.
- *
- * \details The label keeps its current type. The data union member must
- *     match the existing type — these helpers do not change the type.
- *
- * \param[in,out] box  Box owning the label to update.
- * \param[in]     data New value.
- *
- * \retval RASTER_RC_OK on success.
- * \retval RASTER_RC_NULL_POINTER if \p box or \p box->label is NULL.
- */
-enum RasterReturnCode raster_api_set_label_data(struct RasterBox *box, union RasterLabelData data);
-
-/*!
- * \brief Convenience wrapper around raster_api_set_label_data for strings.
- *
- * \param[in,out] box  Box owning the label to update.
- * \param[in]     text New string value. The label keeps a pointer to it, so
- *     the storage must live at least as long as the label uses it.
- *
- * \retval RASTER_RC_OK on success.
- * \retval RASTER_RC_NULL_POINTER if \p box or \p box->label is NULL.
- */
-enum RasterReturnCode raster_api_set_label_text(struct RasterBox *box, char *text);
-
-/*!
- * \brief Convenience wrapper around raster_api_set_label_data for integers.
+ * \brief Sets the value of a label, setting \p type accordingly to the type of \p value.
  *
  * \param[in,out] box   Box owning the label to update.
  * \param[in]     value New integer value.
@@ -144,7 +113,7 @@ enum RasterReturnCode raster_api_set_label_text(struct RasterBox *box, char *tex
 enum RasterReturnCode raster_api_set_label_int(struct RasterBox *box, int32_t value);
 
 /*!
- * \brief Convenience wrapper around raster_api_set_label_data for floats.
+ * \brief Sets the value of a label, setting \p type accordingly to the type of \p value.
  *
  * \param[in,out] box   Box owning the label to update.
  * \param[in]     value New float value.
@@ -153,6 +122,18 @@ enum RasterReturnCode raster_api_set_label_int(struct RasterBox *box, int32_t va
  * \retval RASTER_RC_NULL_POINTER if \p box or \p box->label is NULL.
  */
 enum RasterReturnCode raster_api_set_label_float(struct RasterBox *box, float value);
+
+/*!
+ * \brief Sets the value of a label, setting \p type accordingly to the type of \p value.
+ *
+ * \param[in,out] box    Box owning the label to update.
+ * \param[in]     string New string value. The label keeps a pointer to it, so
+ *     the storage must live at least as long as the label uses it.
+ *
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_NULL_POINTER if \p box or \p box->label is NULL.
+ */
+enum RasterReturnCode raster_api_set_label_string(struct RasterBox *box, char *string);
 
 /*!
  * \brief Build a RasterIntFormat.

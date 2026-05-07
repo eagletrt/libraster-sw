@@ -177,25 +177,35 @@ enum RasterReturnCode raster_api_create_label(struct RasterLabel *label, union R
     return RASTER_RC_OK;
 }
 
-enum RasterReturnCode raster_api_set_label_data(struct RasterBox *box, union RasterLabelData data) {
+enum RasterReturnCode raster_api_set_label_int(struct RasterBox *box, int32_t value) {
     if (box == NULL || box->label == NULL) {
         return RASTER_RC_NULL_POINTER;
     }
-    box->label->data = data;
+    box->label->data.integer.value = value;
+    box->label->type = RASTER_LABEL_DATA_INT;
     box->updated = true;
     return RASTER_RC_OK;
 }
 
-enum RasterReturnCode raster_api_set_label_text(struct RasterBox *box, char *text) {
-    return raster_api_set_label_data(box, (union RasterLabelData){ .string.value = text, .string.length = (text != NULL) ? (uint16_t)strlen(text) : 0u, .string.max_length = (box != NULL && box->label != NULL) ? box->label->data.string.max_length : 0u });
-}
-
-enum RasterReturnCode raster_api_set_label_int(struct RasterBox *box, int32_t value) {
-    return raster_api_set_label_data(box, (union RasterLabelData){ .integer.value = value, .integer.is_unsigned = (box != NULL && box->label != NULL) ? box->label->data.integer.is_unsigned : false });
-}
-
 enum RasterReturnCode raster_api_set_label_float(struct RasterBox *box, float value) {
-    return raster_api_set_label_data(box, (union RasterLabelData){ .decimal.value = value, .decimal.precision = (box != NULL && box->label != NULL) ? box->label->data.decimal.precision : 0u });
+    if (box == NULL || box->label == NULL) {
+        return RASTER_RC_NULL_POINTER;
+    }
+    box->label->data.decimal.value = value;
+    box->label->type = RASTER_LABEL_DATA_FLOAT;
+    box->updated = true;
+    return RASTER_RC_OK;
+}
+
+enum RasterReturnCode raster_api_set_label_string(struct RasterBox *box, char *string) {
+    if (box == NULL || box->label == NULL) {
+        return RASTER_RC_NULL_POINTER;
+    }
+    box->label->data.string.value = string;
+    box->label->data.string.length = (string != NULL) ? (uint16_t)strlen(string) : 0u;
+    box->label->type = RASTER_LABEL_DATA_STRING;
+    box->updated = true;
+    return RASTER_RC_OK;
 }
 
 enum RasterReturnCode raster_api_set_label_int_format(struct RasterBox *box, bool is_unsigned) {
