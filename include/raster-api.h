@@ -95,7 +95,6 @@ struct RasterBox *raster_api_get_box(struct RasterBox *boxes, uint16_t size, uin
  * \param[out] label  Label to initialize.
  * \param[in]  data   Initial value.
  * \param[in]  type   Discriminator for \p data and \p format.
- * \param[in]  format Formatting options for \p data.
  * \param[in]  pos    Anchor position relative to the owning box.
  * \param[in]  font   Font used for rendering. Must be non-NULL.
  * \param[in]  size   Target pixel height of the rendered text.
@@ -105,7 +104,7 @@ struct RasterBox *raster_api_get_box(struct RasterBox *boxes, uint16_t size, uin
  * \retval RASTER_RC_OK on success.
  * \retval RASTER_RC_NULL_POINTER if \p label or \p font is NULL.
  */
-enum RasterReturnCode raster_api_create_label(struct RasterLabel *label, union RasterLabelData data, enum RasterLabelDataType type, union RasterLabelFormat format, struct RasterCoords pos, const struct Font *font, uint16_t size, enum FontAlign align, struct Color color);
+enum RasterReturnCode raster_api_create_label(struct RasterLabel *label, union RasterLabelData data, enum RasterLabelDataType type, struct RasterCoords pos, const struct Font *font, uint16_t size, enum FontAlign align, struct Color color);
 
 /*!
  * \brief Update the value of a label and mark its box for redraw.
@@ -156,41 +155,42 @@ enum RasterReturnCode raster_api_set_label_int(struct RasterBox *box, int32_t va
 enum RasterReturnCode raster_api_set_label_float(struct RasterBox *box, float value);
 
 /*!
- * \brief Update the formatting options of a label and mark its box for redraw.
+ * \brief Build a RasterIntFormat.
  *
- * \param[in,out] box    Box owning the label to update.
- * \param[in]     format New formatting options.
+ * \details This function also sets the type discriminator in the format union.
+ *
+ * \param[in,out] box         Box owning the label to update.
+ * \param[in]     is_unsigned Whether the integer should be formatted as unsigned.
  *
  * \retval RASTER_RC_OK on success.
  * \retval RASTER_RC_NULL_POINTER if \p box or \p box->label is NULL.
  */
-enum RasterReturnCode raster_api_set_label_format(struct RasterBox *box, union RasterLabelFormat format);
-
-/*!
- * \brief Build a RasterIntFormat.
- *
- * \param[in] is_unsigned Whether the integer should be formatted as unsigned.
- *
- * \return A RasterIntFormat with the specified properties.
- */
-struct RasterIntFormat raster_api_int_format(bool is_unsigned);
+enum RasterReturnCode raster_api_set_label_int_format(struct RasterBox *box, bool is_unsigned);
 
 /*!
  * \brief Build a RasterFloatFormat.
  *
- * \param[in] precision Number of decimal digits to display.
+ * \details This function also sets the type discriminator in the format union.
  *
- * \return A RasterFloatFormat with the specified properties.
+ * \param[in,out] box       Box owning the label to update.
+ * \param[in]     precision Number of decimal digits to display.
+ *
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_NULL_POINTER if \p box or \p box->label is NULL.
  */
-struct RasterFloatFormat raster_api_float_format(uint8_t precision);
+enum RasterReturnCode raster_api_set_label_float_format(struct RasterBox *box, uint8_t precision);
 
 /*!
  * \brief Build a RasterStringFormat.
  *
- * \param[in] max_length Maximum number of characters to display, 0 for no limit.
+ * \details This function also sets the type discriminator in the format union.
  *
- * \return A RasterStringFormat with the specified properties.
+ * \param[in,out] box        Box owning the label to update.
+ * \param[in]     max_length Maximum number of characters to display, 0 for no limit.
+ *
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_NULL_POINTER if \p box or \p box->label is NULL.
  */
-struct RasterStringFormat raster_api_string_format(uint16_t max_length);
+enum RasterReturnCode raster_api_set_label_string_format(struct RasterBox *box, uint16_t max_length);
 
 #endif // RASTER_API_H

@@ -30,9 +30,8 @@ recompile the library to switch modes.
 
 ## Fonts
 
-Fonts are not embedded in the library. The bundled generator turns one or
-more TTFs into a pair of `fonts.c`/`fonts.h` files that you compile and
-link with your application. Each font carries its own `find_glyph`
+The bundled generator turns one or more TTFs into a pair of `raster-fonts.c`/`raster-fonts.h` 
+files that you compile and link with your application. Each font carries its own `find_glyph`
 function (a switch-case the compiler can fold into a jump table), so glyph
 lookup is a direct call rather than a generic data-driven scan.
 
@@ -114,7 +113,7 @@ def main() -> int:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     current_hash = hash_file(JSON_PATH)
     output_files_present = (
-        OUTPUT_DIR / "fonts.c").exists() and (OUTPUT_DIR / "fonts.h").exists()
+        OUTPUT_DIR / "raster-fonts.c").exists() and (OUTPUT_DIR / "raster-fonts.h").exists()
     cache_valid = HASH_PATH.exists() and HASH_PATH.read_text() == current_hash
 
     if cache_valid and output_files_present:
@@ -137,7 +136,7 @@ if main() != 0:
 
 ## Usage
 
-Include `raster-api.h` and the generated `fonts.h`. Build an interface
+Include `raster-api.h` and the generated `raster-fonts.h`. Build an interface
 with designated initializers, then init and render:
 
 ```c

@@ -244,18 +244,17 @@ void test_raster_api_create_label_successful(void) {
     struct RasterLabel label;
     enum RasterReturnCode rc = raster_api_create_label(
         &label,
-        (union RasterLabelData){ .int_val = 42 },
+        (union RasterLabelData){ .integer = { .value = 42, .is_unsigned = true } },
         RASTER_LABEL_DATA_INT,
-        (union RasterLabelFormat){ .int_fmt = { .is_unsigned = true } },
         (struct RasterCoords){ 3, 4 },
         &test_font,
         12,
         FONT_ALIGN_LEFT,
         (struct Color){ .argb = 0xFFFFFFFF });
     TEST_ASSERT_EQUAL_MESSAGE(RASTER_RC_OK, rc, "Expected RASTER_RC_OK");
-    TEST_ASSERT_EQUAL_INT32_MESSAGE(42, label.data.int_val, "Expected label.data.int_val to be set to 42");
+    TEST_ASSERT_EQUAL_INT32_MESSAGE(42, label.data.integer.value, "Expected label.data.integer.value to be set to 42");
     TEST_ASSERT_EQUAL_MESSAGE(RASTER_LABEL_DATA_INT, label.type, "Expected label.type to be RASTER_LABEL_DATA_INT");
-    TEST_ASSERT_TRUE_MESSAGE(label.format.int_fmt.is_unsigned, "Expected label.format.int_fmt.is_unsigned to be true");
+    TEST_ASSERT_TRUE_MESSAGE(label.data.integer.is_unsigned, "Expected label.data.integer.is_unsigned to be true");
     TEST_ASSERT_EQUAL_UINT16_MESSAGE(3, label.pos.x, "Expected label.pos.x to be set to 3");
     TEST_ASSERT_EQUAL_UINT16_MESSAGE(4, label.pos.y, "Expected label.pos.y to be set to 4");
     TEST_ASSERT_EQUAL_PTR_MESSAGE(&test_font, label.font, "Expected label.font to point to test_font");
@@ -267,23 +266,21 @@ void test_raster_api_create_label_successful(void) {
 void test_raster_api_create_label_signed_int_format(void) {
     struct RasterLabel label;
     raster_api_create_label(&label,
-                            (union RasterLabelData){ .int_val = -1 },
+                            (union RasterLabelData){ .integer = { .value = -1, .is_unsigned = false } },
                             RASTER_LABEL_DATA_INT,
-                            (union RasterLabelFormat){ .int_fmt = { .is_unsigned = false } },
                             (struct RasterCoords){ 0, 0 },
                             &test_font,
                             10,
                             FONT_ALIGN_LEFT,
                             (struct Color){ .argb = 0xFFFFFFFF });
-    TEST_ASSERT_FALSE_MESSAGE(label.format.int_fmt.is_unsigned, "Expected label.format.int_fmt.is_unsigned to be false for signed int format");
-    TEST_ASSERT_EQUAL_INT32_MESSAGE(-1, label.data.int_val, "Expected label.data.int_val to be set to -1 for signed int format");
+    TEST_ASSERT_FALSE_MESSAGE(label.data.integer.is_unsigned, "Expected label.data.integer.is_unsigned to be false for signed int format");
+    TEST_ASSERT_EQUAL_INT32_MESSAGE(-1, label.data.integer.value, "Expected label.data.integer.value to be set to -1 for signed int format");
 }
 
 void test_raster_api_create_label_null_label(void) {
     enum RasterReturnCode rc = raster_api_create_label(NULL,
-                                                       (union RasterLabelData){ .int_val = 0 },
+                                                       (union RasterLabelData){ .integer = { .value = 0, .is_unsigned = false } },
                                                        RASTER_LABEL_DATA_INT,
-                                                       (union RasterLabelFormat){ .int_fmt = { .is_unsigned = false } },
                                                        (struct RasterCoords){ 0, 0 },
                                                        &test_font,
                                                        12,
@@ -295,9 +292,8 @@ void test_raster_api_create_label_null_label(void) {
 void test_raster_api_create_label_null_font(void) {
     struct RasterLabel label;
     enum RasterReturnCode rc = raster_api_create_label(&label,
-                                                       (union RasterLabelData){ .int_val = 0 },
+                                                       (union RasterLabelData){ .integer = { .value = 0, .is_unsigned = false } },
                                                        RASTER_LABEL_DATA_INT,
-                                                       (union RasterLabelFormat){ .int_fmt = { .is_unsigned = false } },
                                                        (struct RasterCoords){ 0, 0 },
                                                        NULL,
                                                        12,
@@ -309,16 +305,15 @@ void test_raster_api_create_label_null_font(void) {
 /*! \} */
 
 /*!
- * \defgroup raster_api_set_label_data Tests for raster_api_set_label_data() and friends
+ * \defgroup raster_api_set_label_data Tests for raster_api_set_label_data()
  * \{
  */
 
 static struct RasterLabel make_int_label(void) {
     struct RasterLabel label;
     raster_api_create_label(&label,
-                            (union RasterLabelData){ .int_val = 0 },
+                            (union RasterLabelData){ .integer = { .value = 0, .is_unsigned = false } },
                             RASTER_LABEL_DATA_INT,
-                            (union RasterLabelFormat){ .int_fmt = { .is_unsigned = false } },
                             (struct RasterCoords){ 0, 0 },
                             &test_font,
                             12,
@@ -330,20 +325,20 @@ static struct RasterLabel make_int_label(void) {
 void test_raster_api_set_label_data_updates_value_and_flag(void) {
     struct RasterLabel label = make_int_label();
     struct RasterBox box = { false, 0x1, { 0, 0, 1, 1 }, { 0 }, &label };
-    enum RasterReturnCode rc = raster_api_set_label_data(&box, (union RasterLabelData){ .int_val = 84 });
+    enum RasterReturnCode rc = raster_api_set_label_data(&box, (union RasterLabelData){ .integer = { .value = 84, .is_unsigned = false } });
     TEST_ASSERT_EQUAL_MESSAGE(RASTER_RC_OK, rc, "Expected RASTER_RC_OK");
-    TEST_ASSERT_EQUAL_INT32_MESSAGE(84, label.data.int_val, "Expected label.data.int_val to be updated to 84");
+    TEST_ASSERT_EQUAL_INT32_MESSAGE(84, label.data.integer.value, "Expected label.data.integer.value to be updated to 84");
     TEST_ASSERT_TRUE_MESSAGE(box.updated, "Setting label data must mark the box as updated");
 }
 
 void test_raster_api_set_label_data_null_box(void) {
-    enum RasterReturnCode rc = raster_api_set_label_data(NULL, (union RasterLabelData){ .int_val = 0 });
+    enum RasterReturnCode rc = raster_api_set_label_data(NULL, (union RasterLabelData){ .integer = { .value = 0, .is_unsigned = false } });
     TEST_ASSERT_EQUAL(RASTER_RC_NULL_POINTER, rc);
 }
 
 void test_raster_api_set_label_data_null_label(void) {
     struct RasterBox box = { false, 0x1, { 0, 0, 1, 1 }, { 0 }, NULL };
-    enum RasterReturnCode rc = raster_api_set_label_data(&box, (union RasterLabelData){ .int_val = 0 });
+    enum RasterReturnCode rc = raster_api_set_label_data(&box, (union RasterLabelData){ .integer = { .value = 0, .is_unsigned = false } });
     TEST_ASSERT_EQUAL(RASTER_RC_NULL_POINTER, rc);
 }
 
@@ -354,7 +349,7 @@ void test_raster_api_set_label_text_updates_value(void) {
     char *new_text = "hi";
     enum RasterReturnCode rc = raster_api_set_label_text(&box, new_text);
     TEST_ASSERT_EQUAL_MESSAGE(RASTER_RC_OK, rc, "Expected RASTER_RC_OK");
-    TEST_ASSERT_EQUAL_PTR_MESSAGE(new_text, label.data.text, "Expected label.data.text to be updated to new_text");
+    TEST_ASSERT_EQUAL_PTR_MESSAGE(new_text, label.data.string.value, "Expected label.data.string.value to be updated to new_text");
     TEST_ASSERT_TRUE_MESSAGE(box.updated, "Setting label text must mark the box as updated");
 }
 
@@ -363,7 +358,7 @@ void test_raster_api_set_label_int_updates_value(void) {
     struct RasterBox box = { false, 0x1, { 0, 0, 1, 1 }, { 0 }, &label };
     enum RasterReturnCode rc = raster_api_set_label_int(&box, -77);
     TEST_ASSERT_EQUAL_MESSAGE(RASTER_RC_OK, rc, "Expected RASTER_RC_OK");
-    TEST_ASSERT_EQUAL_INT32_MESSAGE(-77, label.data.int_val, "Expected label.data.int_val to be updated to -77");
+    TEST_ASSERT_EQUAL_INT32_MESSAGE(-77, label.data.integer.value, "Expected label.data.integer.value to be updated to -77");
     TEST_ASSERT_TRUE_MESSAGE(box.updated, "Setting label int data must mark the box as updated");
 }
 
@@ -373,51 +368,58 @@ void test_raster_api_set_label_float_updates_value(void) {
     struct RasterBox box = { false, 0x1, { 0, 0, 1, 1 }, { 0 }, &label };
     enum RasterReturnCode rc = raster_api_set_label_float(&box, 3.5f);
     TEST_ASSERT_EQUAL_MESSAGE(RASTER_RC_OK, rc, "Expected RASTER_RC_OK");
-    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(3.5f, label.data.float_val, "Expected label.data.float_val to be updated to 3.5f");
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(3.5f, label.data.decimal.value, "Expected label.data.decimal.value to be updated to 3.5f");
     TEST_ASSERT_TRUE_MESSAGE(box.updated, "Setting label float data must mark the box as updated");
-}
-
-void test_raster_api_set_label_format_updates_format(void) {
-    struct RasterLabel label = make_int_label();
-    struct RasterBox box = { false, 0x1, { 0, 0, 1, 1 }, { 0 }, &label };
-    enum RasterReturnCode rc = raster_api_set_label_format(&box,
-                                                           (union RasterLabelFormat){ .int_fmt = { .is_unsigned = true } });
-    TEST_ASSERT_EQUAL_MESSAGE(RASTER_RC_OK, rc, "Expected RASTER_RC_OK");
-    TEST_ASSERT_TRUE_MESSAGE(label.format.int_fmt.is_unsigned, "Expected label.format.int_fmt.is_unsigned to be updated to true");
-    TEST_ASSERT_TRUE_MESSAGE(box.updated, "Setting label format must mark the box as updated");
-}
-
-void test_raster_api_set_label_format_null_box(void) {
-    enum RasterReturnCode rc = raster_api_set_label_format(NULL,
-                                                           (union RasterLabelFormat){ .int_fmt = { .is_unsigned = false } });
-    TEST_ASSERT_EQUAL(RASTER_RC_NULL_POINTER, rc);
-}
-
-void test_raster_api_set_label_format_null_label(void) {
-    struct RasterBox box = { false, 0x1, { 0, 0, 1, 1 }, { 0 }, NULL };
-    enum RasterReturnCode rc = raster_api_set_label_format(&box,
-                                                           (union RasterLabelFormat){ .int_fmt = { .is_unsigned = false } });
-    TEST_ASSERT_EQUAL(RASTER_RC_NULL_POINTER, rc);
 }
 
 /*! \} */
 
 /*!
- * \defgroup raster_api_format_helpers Tests for raster_api_*_format()
+ * \defgroup raster_api_set_label_*_format Tests for raster_api_set_label_*_format()
  * \{
  */
 
-void test_raster_api_int_format_passthrough(void) {
-    TEST_ASSERT_TRUE_MESSAGE(raster_api_int_format(true).is_unsigned, "Expected raster_api_int_format(true) to return a format with is_unsigned = true");
-    TEST_ASSERT_FALSE_MESSAGE(raster_api_int_format(false).is_unsigned, "Expected raster_api_int_format(false) to return a format with is_unsigned = false");
+void test_raster_api_set_label_format_updates_format(void) {
+    struct RasterLabel label = make_int_label();
+    label.type = RASTER_LABEL_DATA_FLOAT;
+    struct RasterBox box = { false, 0x1, { 0, 0, 1, 1 }, { 0 }, &label };
+    enum RasterReturnCode rc = raster_api_set_label_int_format(&box, true);
+    TEST_ASSERT_EQUAL_MESSAGE(RASTER_RC_OK, rc, "Expected RASTER_RC_OK");
+    TEST_ASSERT_TRUE_MESSAGE(label.data.integer.is_unsigned, "Expected label.data.integer.is_unsigned to be updated to true");
+    TEST_ASSERT_TRUE_MESSAGE(box.updated, "Setting label format must mark the box as updated");
+    TEST_ASSERT_EQUAL_MESSAGE(RASTER_LABEL_DATA_INT, label.type, "Expected label.type to remain RASTER_LABEL_DATA_INT");
 }
 
-void test_raster_api_float_format_passthrough(void) {
-    TEST_ASSERT_EQUAL_UINT8(3, raster_api_float_format(3).precision);
+void test_raster_api_set_label_format_null_box(void) {
+    enum RasterReturnCode rc = raster_api_set_label_int_format(NULL, true);
+    TEST_ASSERT_EQUAL(RASTER_RC_NULL_POINTER, rc);
 }
 
-void test_raster_api_string_format_passthrough(void) {
-    TEST_ASSERT_EQUAL_UINT16(64, raster_api_string_format(64).max_length);
+void test_raster_api_set_label_format_null_label(void) {
+    struct RasterBox box = { false, 0x1, { 0, 0, 1, 1 }, { 0 }, NULL };
+    enum RasterReturnCode rc = raster_api_set_label_int_format(&box, true);
+    TEST_ASSERT_EQUAL(RASTER_RC_NULL_POINTER, rc);
+}
+
+void test_raster_api_set_label_float_format_updates_format(void) {
+    struct RasterLabel label = make_int_label();
+    struct RasterBox box = { false, 0x1, { 0, 0, 1, 1 }, { 0 }, &label };
+    enum RasterReturnCode rc = raster_api_set_label_float_format(&box, 2);
+    TEST_ASSERT_EQUAL_MESSAGE(RASTER_RC_OK, rc, "Expected RASTER_RC_OK");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2, label.data.decimal.precision, "Expected label.data.decimal.precision to be updated to 2");
+    TEST_ASSERT_TRUE_MESSAGE(box.updated, "Setting label format must mark the box as updated");
+    TEST_ASSERT_EQUAL_MESSAGE(RASTER_LABEL_DATA_FLOAT, label.type, "Expected label.type to remain RASTER_LABEL_DATA_FLOAT");
+}
+
+void test_raster_api_set_label_string_format_updates_format(void) {
+    struct RasterLabel label = make_int_label();
+    label.type = RASTER_LABEL_DATA_STRING;
+    struct RasterBox box = { false, 0x1, { 0, 0, 1, 1 }, { 0 }, &label };
+    enum RasterReturnCode rc = raster_api_set_label_string_format(&box, 10);
+    TEST_ASSERT_EQUAL_MESSAGE(RASTER_RC_OK, rc, "Expected RASTER_RC_OK");
+    TEST_ASSERT_EQUAL_UINT_MESSAGE(10, label.data.string.max_length, "Expected label.data.string.max_length to be updated to 10");
+    TEST_ASSERT_TRUE_MESSAGE(box.updated, "Setting label format must mark the box as updated");
+    TEST_ASSERT_EQUAL_MESSAGE(RASTER_LABEL_DATA_STRING, label.type, "Expected label.type to remain RASTER_LABEL_DATA_STRING");
 }
 
 /*! \} */
@@ -430,9 +432,8 @@ void test_raster_api_string_format_passthrough(void) {
 void test_raster_api_render_with_label_draws_background_then_glyph(void) {
     struct RasterLabel label;
     raster_api_create_label(&label,
-                            (union RasterLabelData){ .text = "A" },
+                            (union RasterLabelData){ .string = { .value = "A", .length = 1, .max_length = 0 } },
                             RASTER_LABEL_DATA_STRING,
-                            (union RasterLabelFormat){ .string_fmt = { .max_length = 0 } },
                             (struct RasterCoords){ 5, 6 },
                             &test_font,
                             test_font.base_size,
@@ -507,9 +508,11 @@ int main(void) {
     RUN_TEST(test_raster_api_set_label_format_null_box);
     RUN_TEST(test_raster_api_set_label_format_null_label);
 
-    RUN_TEST(test_raster_api_int_format_passthrough);
-    RUN_TEST(test_raster_api_float_format_passthrough);
-    RUN_TEST(test_raster_api_string_format_passthrough);
+    RUN_TEST(test_raster_api_set_label_format_updates_format);
+    RUN_TEST(test_raster_api_set_label_format_null_box);
+    RUN_TEST(test_raster_api_set_label_format_null_label);
+    RUN_TEST(test_raster_api_set_label_float_format_updates_format);
+    RUN_TEST(test_raster_api_set_label_string_format_updates_format);
 
     RUN_TEST(test_raster_api_render_with_label_draws_background_then_glyph);
 

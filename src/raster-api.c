@@ -12,7 +12,7 @@
  */
 
 #include "raster-api.h"
-#include "eagletrt.h"
+#include "eagletrt-api.h"
 #include "fontutils-api.h"
 #include <inttypes.h>
 #include <stddef.h>
@@ -37,32 +37,31 @@
 EAGLETRT_STATIC enum RasterReturnCode prv_format_label(const struct RasterLabel *label, char *buffer, size_t buffer_size) {
     switch (label->type) {
         case RASTER_LABEL_DATA_INT: {
-            const struct RasterIntFormat *fmt = &label->format.int_fmt;
-            if (fmt->is_unsigned) {
-                snprintf(buffer, buffer_size, "%" PRIu32, (uint32_t)label->data.int_val);
+            if (label->data.integer.is_unsigned) {
+                snprintf(buffer, buffer_size, "%" PRIu32, (uint32_t)label->data.integer.value);
             } else {
-                snprintf(buffer, buffer_size, "%" PRId32, label->data.int_val);
+                snprintf(buffer, buffer_size, "%" PRId32, label->data.integer.value);
             }
             return RASTER_RC_OK;
         }
 
         case RASTER_LABEL_DATA_FLOAT: {
-            const struct RasterFloatFormat *fmt = &label->format.float_fmt;
-            snprintf(buffer, buffer_size, "%.*f", fmt->precision, (double)label->data.float_val);
+            snprintf(buffer, buffer_size, "%.*f", label->data.decimal.precision, (double)label->data.decimal.value);
             return RASTER_RC_OK;
         }
 
         case RASTER_LABEL_DATA_STRING: {
-            const struct RasterStringFormat *fmt = &label->format.string_fmt;
-            if (label->data.text == NULL) {
+            if (label->data.string.value == NULL) {
                 buffer[0] = '\0';
                 return RASTER_RC_OK;
             }
             size_t cap = buffer_size - 1u;
-            if (fmt->max_length > 0u && fmt->max_length < cap) {
-                cap = fmt->max_length;
+            uint16_t max_label_length = label->data.string.max_length;
+            if (max_label_length > 0u && max_label_length < cap) {
+                cap = max_label_length;
             }
-            strncpy(buffer, label->data.text, cap);
+            cap = EAGLETRT_API_CLAMP(cap, 0U, label->data.string.length);
+            strncpy(buffer, label->data.string.value, cap);
             buffer[cap] = '\0';
             return RASTER_RC_OK;
         }
@@ -90,7 +89,7 @@ EAGLETRT_STATIC enum RasterReturnCode prv_draw_box(struct RasterBox *box, raster
     }
 
     if (box->label != NULL && box->label->font != NULL) {
-        char buffer[RASTER_LABEL_BUFFER_SIZE];
+        char buffer[RASTER_LABEL_BUFFER_SIZE] = { 0 };
         if (prv_format_label(box->label, buffer, sizeof(buffer)) != RASTER_RC_OK) {
             return RASTER_RC_ERROR;
         }
@@ -164,13 +163,12 @@ struct RasterBox *raster_api_get_box(struct RasterBox *boxes, uint16_t size, uin
     return NULL;
 }
 
-enum RasterReturnCode raster_api_create_label(struct RasterLabel *label, union RasterLabelData data, enum RasterLabelDataType type, union RasterLabelFormat format, struct RasterCoords pos, const struct Font *font, uint16_t size, enum FontAlign align, struct Color color) {
+enum RasterReturnCode raster_api_create_label(struct RasterLabel *label, union RasterLabelData data, enum RasterLabelDataType type, struct RasterCoords pos, const struct Font *font, uint16_t size, enum FontAlign align, struct Color color) {
     if (label == NULL || font == NULL) {
         return RASTER_RC_NULL_POINTER;
     }
     label->data = data;
     label->type = type;
-    label->format = format;
     label->pos = pos;
     label->font = font;
     label->size = size;
@@ -189,34 +187,43 @@ enum RasterReturnCode raster_api_set_label_data(struct RasterBox *box, union Ras
 }
 
 enum RasterReturnCode raster_api_set_label_text(struct RasterBox *box, char *text) {
-    return raster_api_set_label_data(box, (union RasterLabelData){ .text = text });
+    return raster_api_set_label_data(box, (union RasterLabelData){ .string.value = text, .string.length = (text != NULL) ? (uint16_t)strlen(text) : 0u, .string.max_length = (box != NULL && box->label != NULL) ? box->label->data.string.max_length : 0u });
 }
 
 enum RasterReturnCode raster_api_set_label_int(struct RasterBox *box, int32_t value) {
-    return raster_api_set_label_data(box, (union RasterLabelData){ .int_val = value });
+    return raster_api_set_label_data(box, (union RasterLabelData){ .integer.value = value, .integer.is_unsigned = (box != NULL && box->label != NULL) ? box->label->data.integer.is_unsigned : false });
 }
 
 enum RasterReturnCode raster_api_set_label_float(struct RasterBox *box, float value) {
-    return raster_api_set_label_data(box, (union RasterLabelData){ .float_val = value });
+    return raster_api_set_label_data(box, (union RasterLabelData){ .decimal.value = value, .decimal.precision = (box != NULL && box->label != NULL) ? box->label->data.decimal.precision : 0u });
 }
 
-enum RasterReturnCode raster_api_set_label_format(struct RasterBox *box, union RasterLabelFormat format) {
+enum RasterReturnCode raster_api_set_label_int_format(struct RasterBox *box, bool is_unsigned) {
     if (box == NULL || box->label == NULL) {
         return RASTER_RC_NULL_POINTER;
     }
-    box->label->format = format;
+    box->label->data.integer.is_unsigned = is_unsigned;
+    box->label->type = RASTER_LABEL_DATA_INT;
     box->updated = true;
     return RASTER_RC_OK;
 }
 
-struct RasterIntFormat raster_api_int_format(bool is_unsigned) {
-    return (struct RasterIntFormat){ .is_unsigned = is_unsigned };
+enum RasterReturnCode raster_api_set_label_float_format(struct RasterBox *box, uint8_t precision) {
+    if (box == NULL || box->label == NULL) {
+        return RASTER_RC_NULL_POINTER;
+    }
+    box->label->data.decimal.precision = precision;
+    box->label->type = RASTER_LABEL_DATA_FLOAT;
+    box->updated = true;
+    return RASTER_RC_OK;
 }
 
-struct RasterFloatFormat raster_api_float_format(uint8_t precision) {
-    return (struct RasterFloatFormat){ .precision = precision };
-}
-
-struct RasterStringFormat raster_api_string_format(uint16_t max_length) {
-    return (struct RasterStringFormat){ .max_length = max_length };
+enum RasterReturnCode raster_api_set_label_string_format(struct RasterBox *box, uint16_t max_length) {
+    if (box == NULL || box->label == NULL) {
+        return RASTER_RC_NULL_POINTER;
+    }
+    box->label->data.string.max_length = max_length;
+    box->label->type = RASTER_LABEL_DATA_STRING;
+    box->updated = true;
+    return RASTER_RC_OK;
 }
