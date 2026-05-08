@@ -43,48 +43,21 @@ struct RasterCoords {
 enum RasterLabelDataType {
     RASTER_LABEL_DATA_STRING, /*!< Label holds a C string */
     RASTER_LABEL_DATA_INT,    /*!< Label holds a 32-bit integer */
+    RASTER_LABEL_DATA_UINT,   /*!< Label holds a 32-bit unsigned integer */
     RASTER_LABEL_DATA_FLOAT,  /*!< Label holds a single-precision float */
-};
-
-/*!
- * \brief Formatting options for integer labels.
- */
-struct RasterIntData {
-    int32_t value;    /*!< Integer value to display */
-    bool is_unsigned; /*!< Treat the value as unsigned */
-};
-
-/*!
- * \brief Formatting options for float labels.
- */
-struct RasterFloatData {
-    float value;       /*!< Float value to display */
-    uint8_t precision; /*!< Digits after the decimal point */
-};
-
-/*!
- * \brief Formatting options for string labels.
- */
-struct RasterStringData {
-    const char *value;   /*!< C string to display */
-    uint16_t length;     /*!< Length of the string in characters, excluding null terminator */
-    uint16_t max_length; /*!< Truncation length, 0 means no limit */
-};
-
-/*!
- * \brief Active member of RasterLabel::format.
- */
-union RasterLabelData {
-    struct RasterIntData integer;   /*!< Used when type == RASTER_LABEL_DATA_INT */
-    struct RasterFloatData decimal; /*!< Used when type == RASTER_LABEL_DATA_FLOAT */
-    struct RasterStringData string; /*!< Used when type == RASTER_LABEL_DATA_STRING */
 };
 
 /*!
  * \brief A drawable text element rendered inside a box.
  */
 struct RasterLabel {
-    union RasterLabelData data;    /*!< Value to display */
+    union {
+        const char *string; /*!< Text to render, null-terminated C string */
+        int32_t int32;      /*!< Integer value to render */
+        uint32_t uint32;    /*!< Unsigned integer value to render */
+        float floating;     /*!< Floating-point value to render */
+    };
+    const char *format;            /*!< Printf-style format string */
     enum RasterLabelDataType type; /*!< Discriminator for \c data and \c format */
     struct RasterCoords pos;       /*!< Anchor position relative to the box */
     const struct Font *font;       /*!< Font to render with */
