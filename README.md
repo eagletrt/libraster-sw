@@ -150,8 +150,7 @@ static enum RasterReturnCode draw(uint16_t x, uint16_t y, uint16_t w, uint16_t h
 
 static struct RasterLabel speed_label = {
     .type = RASTER_LABEL_DATA_INT,
-    .data.int_val = 0,
-    .format.int_fmt = { .is_unsigned = true },
+    .data.integer = { .value = 100, .is_unsigned = true },
     .pos = { .x = 100, .y = 100 },
     .font = &font_konexy,
     .size = 60,
@@ -182,10 +181,12 @@ The `raster_api_set_label_*` helpers update the value and mark the
 containing box as updated, so the next render redraws it automatically:
 
 ```c
-raster_api_set_label_text(box, "READY");
+raster_api_set_label_string(box, "READY");
 raster_api_set_label_int(box, 99);
 raster_api_set_label_float(box, 3.14f);
-raster_api_set_label_format(box, (union RasterLabelFormat){ .float_fmt = { .precision = 2 } });
+raster_api_set_label_string_format(box, 2);
+raster_api_set_label_int_format(box, false);
+raster_api_set_label_float_format(box, 3);
 ```
 
 ### Label types
@@ -197,6 +198,3 @@ enum RasterLabelDataType {
     RASTER_LABEL_DATA_FLOAT,  /* float   */
 };
 ```
-
-Each type has a matching format struct (max length / precision / signedness)
-selected via the `format` union.
