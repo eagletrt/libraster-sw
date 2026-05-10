@@ -36,24 +36,10 @@ static enum RasterReturnCode draw_rect(uint16_t x, uint16_t y, uint16_t w, uint1
 }
 
 int main(void) {
-    struct RasterLabel title = {
-        .type = RASTER_LABEL_DATA_STRING,
-        .data.string = { .value = "HELLO", .length = 5, .max_length = 0 },
-        .pos = { .x = 200, .y = 100 },
-        .font = &font_konexy,
-        .size = 32,
-        .align = FONT_ALIGN_CENTER,
-        .color = { .argb = 0xFFFFFFFF },
-    };
-    struct RasterLabel value = {
-        .type = RASTER_LABEL_DATA_INT,
-        .data.integer = { .value = 51, .is_unsigned = false },
-        .pos = { .x = 200, .y = 100 },
-        .font = &font_konexy,
-        .size = 32,
-        .align = FONT_ALIGN_CENTER,
-        .color = { .argb = 0xFFFFFFFF },
-    };
+    struct RasterLabel title;
+    raster_api_create_label_string(&title, "HELLO", NULL, (struct RasterCoords){ .x = 200, .y = 100 }, &font_konexy, 32, FONT_ALIGN_CENTER, (struct Color){ .argb = 0xFFFFFFFF });
+    struct RasterLabel value;
+    raster_api_create_label_int32(&value, 51, NULL, (struct RasterCoords){ .x = 200, .y = 100 }, &font_konexy, 32, FONT_ALIGN_CENTER, (struct Color){ .argb = 0xFFFFFFFF });
 
     struct RasterBox boxes[] = {
         { .updated = true, .id = 0x1, .rect = { 0, 0, 400, 240 }, .color = { .argb = 0xFF000000 }, .label = &title },
@@ -64,7 +50,7 @@ int main(void) {
     raster_api_init(&handler, boxes, sizeof(boxes) / sizeof(boxes[0]), draw_rect, NULL);
     raster_api_render(&handler);
 
-    raster_api_set_label_int(&boxes[1], 99);
+    raster_api_set_label_int32(&boxes[1], 99);
     raster_api_render(&handler);
 
     return 0;

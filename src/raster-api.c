@@ -65,7 +65,7 @@ EAGLETRT_STATIC enum RasterReturnCode prv_format_label(const struct RasterLabel 
         }
     }
 
-    if (snprintf_res >= 0 && snprintf_res < RASTER_LABEL_BUFFER_SIZE) {
+    if (snprintf_res >= 0 && snprintf_res < (int32_t)RASTER_LABEL_BUFFER_SIZE) {
         return RASTER_RC_OK;
     }
 
