@@ -419,8 +419,7 @@ STM32Make.make
 #in case git exclude is not used
 .local_gitignore
 
-fonts.c
-fonts.h
+raster-fonts.*
 
 docs
 platformio.ini
