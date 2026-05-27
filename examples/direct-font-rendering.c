@@ -3,9 +3,8 @@
  *
  * \brief Minimal end-to-end example.
  *
- * \details Builds a two-box interface (one with a string label, one with an
- *     integer label) and renders it into a software framebuffer using a
- *     trivial rectangle-fill callback.
+ * \details Builds a two-box interface (each with a string label) and renders
+ *     it into a software framebuffer using a trivial rectangle-fill callback.
  *
  *     The font `font_konexy` is provided by the user's project. Run the
  *     generator first:
@@ -17,11 +16,13 @@
 
 #include "raster-fonts.h"
 #include "raster-api.h"
+#include "box-api.h"
+#include "label-api.h"
 #include <stdint.h>
 #include <stddef.h>
 
-#define WINDOW_WIDTH (800u)
-#define WINDOW_HEIGHT (480u)
+#define WINDOW_WIDTH (800U)
+#define WINDOW_HEIGHT (480U)
 
 static uint32_t framebuffer[WINDOW_HEIGHT * WINDOW_WIDTH];
 
@@ -36,21 +37,21 @@ static enum RasterReturnCode draw_rect(uint16_t x, uint16_t y, uint16_t w, uint1
 }
 
 int main(void) {
-    struct RasterLabel title;
-    raster_api_create_label_string(&title, "HELLO", NULL, (struct RasterCoords){ .x = 200, .y = 100 }, &font_konexy, 32, FONT_ALIGN_CENTER, (struct Color){ .argb = 0xFFFFFFFF });
-    struct RasterLabel value;
-    raster_api_create_label_int32(&value, 51, NULL, (struct RasterCoords){ .x = 200, .y = 100 }, &font_konexy, 32, FONT_ALIGN_CENTER, (struct Color){ .argb = 0xFFFFFFFF });
+    struct Label title;
+    label_api_init(&title, "HELLO", 200, 100, &font_konexy, 32, FONT_ALIGN_CENTER, (struct Color){ .argb = 0xFFFFFFFF });
+    struct Label value;
+    label_api_init(&value, "99", 200, 100, &font_konexy, 32, FONT_ALIGN_CENTER, (struct Color){ .argb = 0xFFFFFFFF });
 
-    struct RasterBox boxes[] = {
-        { .updated = true, .id = 0x1, .rect = { 0, 0, 400, 240 }, .color = { .argb = 0xFF000000 }, .label = &title },
-        { .updated = true, .id = 0x2, .rect = { 400, 0, 400, 240 }, .color = { .argb = 0xFF000000 }, .label = &value },
-    };
+    struct Box boxes[2];
+    box_api_init(&boxes[0], 0x1, (struct BoxRectangle){ 0, 0, 400, 240 }, (struct Color){ .argb = 0xFF000000 }, &title);
+    box_api_init(&boxes[1], 0x2, (struct BoxRectangle){ 400, 0, 400, 240 }, (struct Color){ .argb = 0xFF000000 }, &value);
 
     struct RasterHandler handler;
     raster_api_init(&handler, boxes, sizeof(boxes) / sizeof(boxes[0]), draw_rect, NULL);
     raster_api_render(&handler);
 
-    raster_api_set_label_int32(&boxes[1], 99);
+    label_api_set_text(&value, "42");
+    boxes[1].updated = true;
     raster_api_render(&handler);
 
     return 0;

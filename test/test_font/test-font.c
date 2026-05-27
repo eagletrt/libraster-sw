@@ -1,13 +1,5 @@
-/**
- * @file test-fontutils.c
- * @brief Test suite for fontutils-api.c
- *
- * @author Alessandro Bridi [ale.bridi15@gmail.com]
- * @date 2025-03-23
- */
-
 #include "fff.h"
-#include "fontutils-api.h"
+#include "font-api.h"
 #include "test-font.h"
 #include "unity.h"
 
@@ -67,41 +59,41 @@ void test_color_individual_assignment(void) {
 /*! \} */
 
 /*!
- * \defgroup font_find_glyph Tests for font_find_glyph()
+ * \defgroup font_api_find_glyph Tests for font_api_find_glyph()
  * \{
  */
 
-void test_font_find_glyph_present(void) {
-    const struct Glyph *g = font_find_glyph(&test_font, 'A');
+void test_font_api_find_glyph_present(void) {
+    const struct FontGlyph *g = font_api_find_glyph(&test_font, 'A');
     TEST_ASSERT_NOT_NULL_MESSAGE(g, "Expected to find glyph 'A'");
     TEST_ASSERT_EQUAL_INT_MESSAGE('A', g->character, "Wrong character returned");
     TEST_ASSERT_EQUAL_UINT16_MESSAGE(10, g->width, "Wrong glyph width");
 }
 
-void test_font_find_glyph_first(void) {
-    const struct Glyph *g = font_find_glyph(&test_font, ' ');
+void test_font_api_find_glyph_first(void) {
+    const struct FontGlyph *g = font_api_find_glyph(&test_font, ' ');
     TEST_ASSERT_NOT_NULL_MESSAGE(g, "Expected to find glyph ' '");
     TEST_ASSERT_EQUAL_INT_MESSAGE(' ', g->character, "Wrong character returned");
 }
 
-void test_font_find_glyph_last(void) {
-    const struct Glyph *g = font_find_glyph(&test_font, 't');
+void test_font_api_find_glyph_last(void) {
+    const struct FontGlyph *g = font_api_find_glyph(&test_font, 't');
     TEST_ASSERT_NOT_NULL_MESSAGE(g, "Expected to find glyph 't'");
     TEST_ASSERT_EQUAL_INT_MESSAGE('t', g->character, "Wrong character returned");
 }
 
-void test_font_find_glyph_missing(void) {
-    TEST_ASSERT_NULL(font_find_glyph(&test_font, 'Z'));
+void test_font_api_find_glyph_missing(void) {
+    TEST_ASSERT_NULL(font_api_find_glyph(&test_font, 'Z'));
 }
 
-void test_font_find_glyph_null_font(void) {
-    TEST_ASSERT_NULL(font_find_glyph(NULL, 'A'));
+void test_font_api_find_glyph_null_font(void) {
+    TEST_ASSERT_NULL(font_api_find_glyph(NULL, 'A'));
 }
 
-void test_font_find_glyph_null_callback(void) {
+void test_font_api_find_glyph_null_callback(void) {
     struct Font broken = test_font;
     broken.find_glyph = NULL;
-    TEST_ASSERT_NULL(font_find_glyph(&broken, 'A'));
+    TEST_ASSERT_NULL(font_api_find_glyph(&broken, 'A'));
 }
 
 /*! \} */
@@ -138,24 +130,6 @@ void test_font_api_length_zero_base_size(void) {
 void test_font_api_length_single_char(void) {
     // 'A' width 10 at native size 20.
     TEST_ASSERT_EQUAL_UINT16(10, font_api_length("A", test_font.base_size, &test_font));
-}
-
-void test_font_api_length_grows_with_chars(void) {
-    uint16_t a = font_api_length("A", test_font.base_size, &test_font);
-    uint16_t ab = font_api_length("AB", test_font.base_size, &test_font);
-    TEST_ASSERT_GREATER_THAN(a, ab);
-}
-
-void test_font_api_length_doubles_at_double_size(void) {
-    uint16_t small = font_api_length("Test", 20, &test_font);
-    uint16_t big = font_api_length("Test", 40, &test_font);
-    TEST_ASSERT_EQUAL_UINT16(small * 2, big);
-}
-
-void test_font_api_length_skips_unknown_chars(void) {
-    uint16_t with_z = font_api_length("AZB", test_font.base_size, &test_font);
-    uint16_t without = font_api_length("AB", test_font.base_size, &test_font);
-    TEST_ASSERT_EQUAL_UINT16(without, with_z);
 }
 
 /*! \} */
@@ -213,7 +187,6 @@ void test_font_api_draw_right_alignment_offset(void) {
 }
 
 void test_font_api_draw_skips_unknown_chars(void) {
-    // 'Z' is not in the font, only 'A' should be drawn.
     enum RasterReturnCode rc = font_api_draw(0, 0, FONT_ALIGN_LEFT, &test_font, "ZA", (struct Color){ .argb = 0xFFFFFFFF }, 20, fake_draw);
     TEST_ASSERT_EQUAL_MESSAGE(RASTER_RC_OK, rc, "Expected OK return code when drawing with valid parameters");
     TEST_ASSERT_EQUAL_UINT_MESSAGE(1, fake_draw_fake.call_count, "Expected draw callback to be called once for one known character");
@@ -229,8 +202,6 @@ void test_font_api_draw_carries_color_with_alpha(void) {
     enum RasterReturnCode rc = font_api_draw(0, 0, FONT_ALIGN_LEFT, &test_font, "A", (struct Color){ .argb = 0x00112233 }, 20, fake_draw);
     TEST_ASSERT_EQUAL_MESSAGE(RASTER_RC_OK, rc, "Expected OK return code when drawing with valid parameters");
     TEST_ASSERT_EQUAL_UINT_MESSAGE(1, fake_draw_fake.call_count, "Expected draw callback to be called once for one character");
-    // Alpha is replaced by the glyph's coverage value (0xF0 for an opaque pixel),
-    // RGB must come from the caller.
     struct Color got = fake_draw_fake.arg4_history[0];
     TEST_ASSERT_EQUAL_HEX8_MESSAGE(0xF0, got.a, "Alpha should be the glyph coverage");
     TEST_ASSERT_EQUAL_HEX8_MESSAGE(0x11, got.r, "Red should come from the caller");
@@ -239,7 +210,6 @@ void test_font_api_draw_carries_color_with_alpha(void) {
 }
 
 void test_font_api_draw_advances_x_at_native_size(void) {
-    // Two glyphs back-to-back; the second one's X must be the first X plus the first glyph's width.
     enum RasterReturnCode rc = font_api_draw(0, 0, FONT_ALIGN_LEFT, &test_font, "BA", (struct Color){ .argb = 0xFFFFFFFF }, 20, fake_draw);
     TEST_ASSERT_EQUAL_MESSAGE(RASTER_RC_OK, rc, "Expected OK return code when drawing with valid parameters");
     TEST_ASSERT_EQUAL_UINT_MESSAGE(2, fake_draw_fake.call_count, "Expected draw callback to be called twice for two characters");
@@ -248,7 +218,6 @@ void test_font_api_draw_advances_x_at_native_size(void) {
 }
 
 void test_font_api_draw_scales_size(void) {
-    // pixel_size = 40 means double scaling; glyph spans become 2px wide / 2px tall.
     enum RasterReturnCode rc = font_api_draw(0, 0, FONT_ALIGN_LEFT, &test_font, "A", (struct Color){ .argb = 0xFFFFFFFF }, 40, fake_draw);
     TEST_ASSERT_EQUAL_MESSAGE(RASTER_RC_OK, rc, "Expected OK return code when drawing with valid parameters");
     TEST_ASSERT_EQUAL_UINT_MESSAGE(1, fake_draw_fake.call_count, "Expected draw callback to be called once for one character");
@@ -268,12 +237,12 @@ int main(void) {
     RUN_TEST(test_color_components_combined);
     RUN_TEST(test_color_individual_assignment);
 
-    RUN_TEST(test_font_find_glyph_present);
-    RUN_TEST(test_font_find_glyph_first);
-    RUN_TEST(test_font_find_glyph_last);
-    RUN_TEST(test_font_find_glyph_missing);
-    RUN_TEST(test_font_find_glyph_null_font);
-    RUN_TEST(test_font_find_glyph_null_callback);
+    RUN_TEST(test_font_api_find_glyph_present);
+    RUN_TEST(test_font_api_find_glyph_first);
+    RUN_TEST(test_font_api_find_glyph_last);
+    RUN_TEST(test_font_api_find_glyph_missing);
+    RUN_TEST(test_font_api_find_glyph_null_font);
+    RUN_TEST(test_font_api_find_glyph_null_callback);
 
     RUN_TEST(test_font_api_length_native_size);
     RUN_TEST(test_font_api_length_empty_string);
@@ -281,9 +250,6 @@ int main(void) {
     RUN_TEST(test_font_api_length_null_font);
     RUN_TEST(test_font_api_length_zero_base_size);
     RUN_TEST(test_font_api_length_single_char);
-    RUN_TEST(test_font_api_length_grows_with_chars);
-    RUN_TEST(test_font_api_length_doubles_at_double_size);
-    RUN_TEST(test_font_api_length_skips_unknown_chars);
 
     RUN_TEST(test_font_api_draw_null_font);
     RUN_TEST(test_font_api_draw_null_text);

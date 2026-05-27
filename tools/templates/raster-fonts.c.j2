@@ -14,13 +14,13 @@ static const uint8_t sdf_data_{{ font.name }}[] = {
 {%- endfor %}
 };
 
-static const struct Glyph glyphs_{{ font.name }}[] = {
+static const struct FontGlyph glyphs_{{ font.name }}[] = {
 {%- for g in font.glyphs %}
     { '{{ g.char }}', {{ g.offset }}, {{ g.size }}, {{ g.width }}, {{ g.height }} },
 {%- endfor %}
 };
 
-static const struct Glyph *find_glyph_{{ font.name }}(char c) {
+static const struct FontGlyph *find_glyph_{{ font.name }}(char c) {
     switch (c) {
 {%- for g in font.glyphs %}
         case '{{ g.char }}': return &glyphs_{{ font.name }}[{{ loop.index0 }}];

@@ -134,67 +134,74 @@ if main() != 0:
     sys.exit(1)
 ```
 
+## Module layout
+
+The library is split into four modules stacked in a single dependency chain:
+
+```
+raster -> box -> label -> font
+```
+
+| Header                           | Holds                                                      |
+|----------------------------------|------------------------------------------------------------|
+| `font.h` / `font-api.h`          | Fonts, glyphs, SDF rendering |
+| `label.h` / `label-api.h`        | Standalone text element with a font reference              |
+| `box.h` / `box-api.h`            | Rectangular region with background color and optional label |
+| `raster.h` / `raster-api.h`      | Stateless orchestrator over a flat array of boxes          |
+
+Each module declares its types in the plain header and its functions in the
+matching `-api.h`. The raster module holds no state of its own beyond the
+user-provided pointers; it only walks the interface and delegates to
+`box_api_draw`.
+
 ## Usage
 
-Include `raster-api.h` and the generated `raster-fonts.h`. Build an interface
-with designated initializers, then init and render:
+Include the API headers you need and the generated `raster-fonts.h`, then
+build an interface and render it:
 
 ```c
-#include "fonts.h"
+#include "raster-fonts.h"
 #include "raster-api.h"
+#include "box-api.h"
+#include "label-api.h"
 
 static enum RasterReturnCode draw(uint16_t x, uint16_t y, uint16_t w, uint16_t h, struct Color color) {
     /* Fill the rectangle in your framebuffer here. */
     return RASTER_RC_OK;
 }
 
-static struct RasterLabel speed_label = {
-    .type = RASTER_LABEL_DATA_INT,
-    .data.integer = { .value = 100, .is_unsigned = true },
-    .pos = { .x = 100, .y = 100 },
-    .font = &font_konexy,
-    .size = 60,
-    .align = FONT_ALIGN_CENTER,
-    .color = { .argb = 0xFFFFFFFF },
-};
-
-static struct RasterBox boxes[] = {
-    { .updated = true, .id = 0x1, .rect = { 0, 0, 200, 200 },
-      .color = { .argb = 0xFF000000 }, .label = &speed_label },
-};
+static struct Label speed_label;
+static struct Box boxes[1];
 
 int main(void) {
+    label_api_init(&speed_label, "100", 100, 100, &font_konexy, 60, FONT_ALIGN_CENTER, (struct Color){ .argb = 0xFFFFFFFF });
+    box_api_init(&boxes[0], 0x1, (struct BoxRectangle){ 0, 0, 200, 200 }, (struct Color){ .argb = 0xFF000000 }, &speed_label);
+
     struct RasterHandler handler;
     raster_api_init(&handler, boxes, 1, draw, NULL); /* partial mode */
     raster_api_render(&handler);
 
-    /* Update a value and redraw next frame. */
-    raster_api_set_label_int(&boxes[0], 42);
+    /* Update the label content and request a redraw next frame. */
+    label_api_set_text(&speed_label, "42");
+    boxes[0].updated = true;
     raster_api_render(&handler);
     return 0;
 }
 ```
 
-### Updating labels
-
-The `raster_api_set_label_*` helpers update the value and mark the
-containing box as updated, so the next render redraws it automatically:
+### Manipulating boxes and labels
 
 ```c
-raster_api_set_label_string(box, "READY");
-raster_api_set_label_int(box, 99);
-raster_api_set_label_float(box, 3.14f);
-raster_api_set_label_string_format(box, 2);
-raster_api_set_label_int_format(box, false);
-raster_api_set_label_float_format(box, 3);
-```
+/* Reposition a box without altering its label content. */
+box_api_set_position(&boxes[0], 50, 50);
 
-### Label types
+/* Attach or detach a label. */
+box_api_set_label(&boxes[0], &speed_label);
+box_api_clear_label(&boxes[0]);
 
-```c
-enum RasterLabelDataType {
-    RASTER_LABEL_DATA_STRING, /* char *  */
-    RASTER_LABEL_DATA_INT,    /* int32_t */
-    RASTER_LABEL_DATA_FLOAT,  /* float   */
-};
+/* Look a box up by id within the interface. */
+struct Box *target = box_api_find(boxes, 1, 0x1);
+
+/* Render a label outside any box, at an explicit screen position. */
+label_api_draw(&speed_label, 320, 240, draw);
 ```

@@ -16,7 +16,7 @@
 #ifndef TEST_FONT_H
 #define TEST_FONT_H
 
-#include "fontutils.h"
+#include "font.h"
 
 #include <stddef.h>
 
@@ -30,7 +30,7 @@ static const uint8_t test_sdf_data[] = {
     0xFF, 1, 0,
 };
 
-static const struct Glyph test_glyphs[] = {
+static const struct FontGlyph test_glyphs[] = {
     { ' ', 0, 3, 4, 20 },
     { 'A', 0, 3, 10, 20 },
     { 'B', 0, 3, 12, 20 },
@@ -41,7 +41,7 @@ static const struct Glyph test_glyphs[] = {
     { 't', 0, 3, 6, 20 },
 };
 
-static const struct Glyph *test_find_glyph(char c) {
+static const struct FontGlyph *test_find_glyph(char c) {
     switch (c) {
         case ' ': return &test_glyphs[0];
         case 'A': return &test_glyphs[1];

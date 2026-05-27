@@ -3,79 +3,61 @@
  * \date 2024-12-13
  * \author Alessandro Bridi [ale.bridi15@gmail.com]
  *
- * \brief Box and label structures used to describe a raster interface.
+ * \brief Top-level handle bundling an interface and the rendering callbacks.
  *
- * \details An interface is a flat array of RasterBox. Each box owns its
- *     rectangle and an optional label. The library renders the interface
- *     using a single user-provided rectangle-fill callback. Whether a frame
- *     is a partial redraw or a full clear-and-redraw is decided at runtime
- *     by the presence of a clear callback on the handler.
+ * \details The raster module is stateless: it only orchestrates traversal
+ *     over a flat array of boxes (the interface) and delegates the actual
+ *     drawing to the box module and to the user-provided callbacks.
  */
 
 #ifndef RASTER_H
 #define RASTER_H
 
-#include "fontutils.h"
-#include <stdbool.h>
-#include <stdint.h>
+#include "box.h"
+#include "colors.h"
 
 /*!
- * \brief A rectangle in pixel coordinates.
+ * \brief Return codes for libraster operations.
  */
-struct RasterRect {
-    uint16_t x; /*!< Top-left X position */
-    uint16_t y; /*!< Top-left Y position */
-    uint16_t w; /*!< Width in pixels */
-    uint16_t h; /*!< Height in pixels */
+enum RasterReturnCode {
+    RASTER_RC_OK,           /*!< Operation completed successfully */
+    RASTER_RC_ERROR,        /*!< Operation failed */
+    RASTER_RC_NULL_POINTER, /*!< A required pointer was NULL */
 };
 
 /*!
- * \brief A pair of pixel coordinates.
+ * \brief Callback used to fill a rectangle with a single color.
+ *
+ * \details This is the only drawing primitive the user must implement. The
+ *     library uses it both for box backgrounds and for glyph rasterization,
+ *     where the alpha channel of \p color carries the coverage value. A
+ *     horizontal line is just a rectangle with `h == 1`.
+ *
+ *     On STM32 this maps naturally to a DMA2D fill; on SDL it maps to
+ *     SDL_FillRect; on a software framebuffer it is two nested loops.
+ *
+ * \param[in] x     Top-left X position of the rectangle, in pixels.
+ * \param[in] y     Top-left Y position of the rectangle, in pixels.
+ * \param[in] w     Width of the rectangle, in pixels.
+ * \param[in] h     Height of the rectangle, in pixels.
+ * \param[in] color Fill color in ARGB.
+ *
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_ERROR on hardware/driver failure.
  */
-struct RasterCoords {
-    uint16_t x; /*!< X position in pixels */
-    uint16_t y; /*!< Y position in pixels */
-};
+typedef enum RasterReturnCode (*raster_draw_rectangle_callback)(uint16_t x, uint16_t y, uint16_t w, uint16_t h, struct Color color);
 
 /*!
- * \brief Discriminator for the value stored in a RasterLabel.
+ * \brief Callback used to clear the entire framebuffer.
+ *
+ * \details Optional. When set on a RasterHandler, raster_api_render switches
+ *     to full-redraw mode: every box is drawn each frame after a clear. When
+ *     unset, only boxes flagged as updated are drawn (partial mode).
+ *
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_ERROR on hardware/driver failure.
  */
-enum RasterLabelDataType {
-    RASTER_LABEL_DATA_STRING, /*!< Label holds a C string */
-    RASTER_LABEL_DATA_INT,    /*!< Label holds a 32-bit integer */
-    RASTER_LABEL_DATA_UINT,   /*!< Label holds a 32-bit unsigned integer */
-    RASTER_LABEL_DATA_FLOAT,  /*!< Label holds a single-precision float */
-};
-
-/*!
- * \brief A drawable text element rendered inside a box.
- */
-struct RasterLabel {
-    union {
-        const char *string; /*!< Text to render, null-terminated C string */
-        int32_t int32;      /*!< Integer value to render */
-        uint32_t uint32;    /*!< Unsigned integer value to render */
-        float floating;     /*!< Floating-point value to render */
-    };
-    const char *format;            /*!< Printf-style format string */
-    enum RasterLabelDataType type; /*!< Discriminator for \c data and \c format */
-    struct RasterCoords pos;       /*!< Anchor position relative to the box */
-    const struct Font *font;       /*!< Font to render with */
-    uint16_t size;                 /*!< Pixel height of the text */
-    enum FontAlign align;          /*!< Horizontal alignment around \c pos */
-    struct Color color;            /*!< Text color */
-};
-
-/*!
- * \brief A rectangle filled with a background color and an optional label.
- */
-struct RasterBox {
-    bool updated;              /*!< Set to true to request a redraw on the next render */
-    uint16_t id;               /*!< Caller-defined identifier */
-    struct RasterRect rect;    /*!< Box geometry on screen */
-    struct Color color;        /*!< Background color */
-    struct RasterLabel *label; /*!< Optional label, NULL for an empty box */
-};
+typedef enum RasterReturnCode (*raster_clear_screen_callback)(void);
 
 /*!
  * \brief Top-level handle bundling an interface and the rendering callbacks.
@@ -88,8 +70,8 @@ struct RasterBox {
  *       every box is drawn each frame after the clear callback has run.
  */
 struct RasterHandler {
-    struct RasterBox *interface; /*!< Currently mounted interface */
-    uint16_t size;               /*!< Number of boxes in \c interface */
+    struct Box *interface; /*!< Currently mounted interface */
+    uint16_t box_count;         /*!< Number of boxes in \c interface */
 
     raster_draw_rectangle_callback draw; /*!< Required: rectangle-fill callback */
     raster_clear_screen_callback clear;  /*!< Optional: when set, full-redraw mode */

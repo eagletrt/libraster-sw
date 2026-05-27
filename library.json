@@ -3,9 +3,7 @@
   "name": "LibRaster",
   "version": "1.0.0",
   "description": "A simple library that provides a way to define and raster a graphic layout",
-  "keywords": [
-    "graphics", "rasterizer", "embedded"
-  ],
+  "keywords": ["graphics", "rasterizer", "embedded"],
   "repository": {
     "type": "git",
     "url": "https://github.com/eagletrt/libraster-sw"
@@ -18,33 +16,23 @@
     }
   ],
   "dependencies": [
-      {
-          "name": "LibEagleTRT",
-          "version": "https://github.com/eagletrt/libeagletrt-sw.git#v0.1.0"
-      }
+    {
+      "name": "LibEagleTRT",
+      "version": "https://github.com/eagletrt/libeagletrt-sw.git#v0.1.0"
+    }
   ],
   "license": "AGPL-3.0-only",
   "frameworks": "*",
   "platforms": "*",
-  "headers": [
-      "raster.h",
-      "raster-api.h",
-      "fontutils.h",
-      "fontutils-api.h"
-  ],
+  "headers": ["raster.h", "raster-api.h", "box.h", "box-api.h", "label.h", "label-api.h", "font.h", "font-api.h", "colors.h"],
   "examples": [
-      {
-          "name": "Demo using direct rendering of glyphs",
-          "base": "examples",
-          "files": [ "direct-font-rendering.c" ]
-      }
+    {
+      "name": "Demo using direct rendering of glyphs",
+      "base": "examples",
+      "files": ["direct-font-rendering.c"]
+    }
   ],
   "export": {
-    "include": [
-      "src/**",
-      "include/**",
-      "tools/**",
-      "examples/**"
-    ]
+    "include": ["src/**", "include/**", "tools/**"]
   }
 }
