@@ -72,7 +72,7 @@ void test_box_api_set_position_null_box(void) {
 /*! \} */
 
 /*!
- * \defgroup box_api_set_label Tests for box_api_set_label() and box_api_clear_label()
+ * \defgroup box_api_set_label Tests for box_api_set_label(), box_api_set_label_text() and box_api_clear_label()
  * \{
  */
 
@@ -84,6 +84,16 @@ void test_box_api_set_label_attaches_and_marks_updated(void) {
     TEST_ASSERT_EQUAL_MESSAGE(RASTER_RC_OK, rc, "box_api_set_label should return RASTER_RC_OK on success");
     TEST_ASSERT_EQUAL_PTR_MESSAGE(&label, box.label, "box_api_set_label should attach the label to the box");
     TEST_ASSERT_TRUE_MESSAGE(box.updated, "box_api_set_label should mark the box as updated");
+}
+
+void test_box_api_set_label_text_set_text(void) {
+    struct Label label;
+    label_api_init(&label, "X", 0, 0, &test_font, 20, FONT_ALIGN_LEFT, (struct Color){ .argb = 0xFFFFFFFF });
+    struct Box box = { false, 0, { 0, 0, 1, 1 }, { 0 }, &label };
+    enum RasterReturnCode rc = box_api_set_label_text(&box, "Hello");
+    TEST_ASSERT_EQUAL_MESSAGE(RASTER_RC_OK, rc, "box_api_set_label_text should return RASTER_RC_OK on success");
+    TEST_ASSERT_EQUAL_STRING_MESSAGE("Hello", box.label->text, "box_api_set_label_text should update the label text");
+    TEST_ASSERT_TRUE_MESSAGE(box.updated, "box_api_set_label_text should mark the box as updated");
 }
 
 void test_box_api_clear_label_detaches_and_marks_updated(void) {
@@ -98,6 +108,10 @@ void test_box_api_clear_label_detaches_and_marks_updated(void) {
 
 void test_box_api_set_label_null_box(void) {
     TEST_ASSERT_EQUAL(RASTER_RC_NULL_POINTER, box_api_set_label(NULL, NULL));
+}
+
+void test_box_api_set_label_text_null_box(void) {
+    TEST_ASSERT_EQUAL(RASTER_RC_NULL_POINTER, box_api_set_label_text(NULL, "Hello"));
 }
 
 void test_box_api_clear_label_null_box(void) {

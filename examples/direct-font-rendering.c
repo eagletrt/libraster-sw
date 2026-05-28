@@ -50,8 +50,7 @@ int main(void) {
     raster_api_init(&handler, boxes, sizeof(boxes) / sizeof(boxes[0]), draw_rect, NULL);
     raster_api_render(&handler);
 
-    label_api_set_text(&value, "42");
-    boxes[1].updated = true;
+    box_api_set_label_text(&boxes[1], "42");
     raster_api_render(&handler);
 
     return 0;

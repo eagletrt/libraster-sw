@@ -58,6 +58,21 @@ enum RasterReturnCode box_api_set_position(struct Box *box, uint16_t x, uint16_t
 enum RasterReturnCode box_api_set_label(struct Box *box, struct Label *label);
 
 /*!
+ * \brief Update the label's text content.
+ *
+ * \details The box stores the pointer as-is; the label storage must outlive
+ *     the box's usage. Marks the box as updated so the change is visible.
+ *
+ * \param[in,out] box Box to update.
+ * \param[in]     text New text content for the label. May be NULL (equivalent to \c box_api_clear_label).
+ *
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_NULL_POINTER if \p box is NULL.
+ * \retval RASTER_RC_ERROR if \p box has no label attached.
+ */
+enum RasterReturnCode box_api_set_label_text(struct Box *box, const char *text);
+
+/*!
  * \brief Detach the label from a box.
  *
  * \param[in,out] box Box to update.

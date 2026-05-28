@@ -41,6 +41,14 @@ enum RasterReturnCode box_api_set_label(struct Box *box, struct Label *label) {
     return RASTER_RC_OK;
 }
 
+enum RasterReturnCode box_api_set_label_text(struct Box *box, const char *text) {
+    if (box == NULL || box->label == NULL) {
+        return RASTER_RC_NULL_POINTER;
+    }
+    box->updated = true;
+    return label_api_set_text(box->label, text);
+}
+
 enum RasterReturnCode box_api_clear_label(struct Box *box) {
     if (box == NULL) {
         return RASTER_RC_NULL_POINTER;
