@@ -19,26 +19,6 @@ void setUp(void) {
  * \{
  */
 
-void test_color_alpha_byte(void) {
-    struct Color color = { .argb = 0xFF000000 };
-    TEST_ASSERT_EQUAL_UINT8(0xFF, color.a);
-}
-
-void test_color_red_byte(void) {
-    struct Color color = { .argb = 0x00FF0000 };
-    TEST_ASSERT_EQUAL_UINT8(0xFF, color.r);
-}
-
-void test_color_green_byte(void) {
-    struct Color color = { .argb = 0x0000FF00 };
-    TEST_ASSERT_EQUAL_UINT8(0xFF, color.g);
-}
-
-void test_color_blue_byte(void) {
-    struct Color color = { .argb = 0x000000FF };
-    TEST_ASSERT_EQUAL_UINT8(0xFF, color.b);
-}
-
 void test_color_components_combined(void) {
     struct Color color = { .argb = 0xAABBCCDD };
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(0xAA, color.a, "Alpha byte should be the highest byte");
@@ -230,10 +210,6 @@ void test_font_api_draw_scales_size(void) {
 int main(void) {
     UNITY_BEGIN();
 
-    RUN_TEST(test_color_alpha_byte);
-    RUN_TEST(test_color_red_byte);
-    RUN_TEST(test_color_green_byte);
-    RUN_TEST(test_color_blue_byte);
     RUN_TEST(test_color_components_combined);
     RUN_TEST(test_color_individual_assignment);
 
