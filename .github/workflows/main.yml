@@ -61,6 +61,7 @@ jobs:
           pio ci -l . \
               -O "framework=stm32cube" \
               -O "build_flags=-I$(pwd)/tools/generated" \
+              -O "platform_packages=toolchain-gccarmnoneeabi@=1.140201.0" \
               examples/direct-font-rendering.c tools/generated/raster-fonts.c \
               -b nucleo_h723zg
 
