@@ -32,9 +32,6 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Print gcc version
-        run: gcc --version
-
       - name: Install PlatformIO Core
         run: pip install --upgrade platformio
 
