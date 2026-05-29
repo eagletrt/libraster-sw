@@ -27,6 +27,9 @@
  * \param[in]  alignment Horizontal alignment around the anchor.
  * \param[in]  color     Foreground color.
  *
+ * \warning The \p text parameter is not copied; the caller must ensure that the string storage
+ *    remains valid for the duration of the box's usage. The string is expected to be null-terminated.
+ *
  * \retval RASTER_RC_OK on success.
  * \retval RASTER_RC_NULL_POINTER if \p label or \p font is NULL.
  */
@@ -40,6 +43,9 @@ enum RasterReturnCode label_api_init(struct Label *label, const char *text, int1
  *
  * \param[in,out] label Label to update.
  * \param[in]     text  New text pointer, or NULL.
+ *
+ * \warning The \p text parameter is not copied; the caller must ensure that the string storage
+ *    remains valid for the duration of the box's usage. The string is expected to be null-terminated.
  *
  * \retval RASTER_RC_OK on success.
  * \retval RASTER_RC_NULL_POINTER if \p label is NULL.

@@ -44,6 +44,9 @@ const struct FontGlyph *font_api_find_glyph(const struct Font *font, char charac
  * \param[in] pixel_size Target pixel height of the rendered text.
  * \param[in] draw       Rectangle-fill callback used for every glyph span.
  *
+ * \warning The \p text parameter is not copied; the caller must ensure that the string storage
+ *    remains valid for the duration of the box's usage. The string is expected to be null-terminated.
+ *
  * \retval RASTER_RC_OK if rendering succeeded (or the string was empty).
  * \retval RASTER_RC_NULL_POINTER if \p font, \p text, or \p draw is NULL.
  * \retval RASTER_RC_ERROR if the draw callback reported an error.
@@ -56,6 +59,9 @@ enum RasterReturnCode font_api_draw(uint16_t x, uint16_t y, enum FontAlignment a
  * \param[in] text       NUL-terminated string to measure.
  * \param[in] pixel_size Target pixel height.
  * \param[in] font       Font to measure with.
+ *
+ * \warning The \p text parameter is not copied; the caller must ensure that the string storage
+ *    remains valid for the duration of the box's usage. The string is expected to be null-terminated.
  *
  * \return Width in pixels, or 0 if any argument is invalid or the string is empty.
  */

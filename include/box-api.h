@@ -66,6 +66,9 @@ enum RasterReturnCode box_api_set_label(struct Box *box, struct Label *label);
  * \param[in,out] box Box to update.
  * \param[in]     text New text content for the label. May be NULL (equivalent to \c box_api_clear_label).
  *
+ * \warning The \p text parameter is not copied; the caller must ensure that the string storage
+ *    remains valid for the duration of the box's usage. The string is expected to be null-terminated.
+ *
  * \retval RASTER_RC_OK on success.
  * \retval RASTER_RC_NULL_POINTER if \p box is NULL.
  * \retval RASTER_RC_ERROR if \p box has no label attached.
