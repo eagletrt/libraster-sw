@@ -36,6 +36,11 @@ jobs:
       - name: Install Generator Dependencies
         run: pip install Pillow numpy scipy jinja2
 
+      - name: Install GCC 14
+        uses: egor-tensin/setup-gcc@v2
+        with:
+          version: 14
+
       - name: Run Unit Tests (or generate minimal .ini)
         run: |
           if [ ! -f "platformio.ini" ]; then
@@ -88,6 +93,11 @@ jobs:
 
       - name: Install Generator Dependencies
         run: pip install Pillow numpy scipy jinja2
+
+      - name: Install GCC 14
+        uses: egor-tensin/setup-gcc@v2
+        with:
+          version: 14
 
       - name: Run Static Code Analysis
         run: |
