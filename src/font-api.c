@@ -86,10 +86,10 @@ EAGLETRT_STATIC enum RasterReturnCode prv_emit_run(uint8_t alpha, uint16_t count
         uint16_t rectangle_w;
         uint16_t rectangle_h;
 
-        uint32_t scaled_x_q = (uint32_t)(uint16_t)*current_x * multiplier_q16;
-        uint32_t scaled_y_q = (uint32_t)(uint16_t)*current_y * multiplier_q16;
-        uint32_t next_x_q = (uint32_t)((uint16_t)*current_x + take) * multiplier_q16;
-        uint32_t next_y_q = (uint32_t)((uint16_t)*current_y + 1u) * multiplier_q16;
+        uint32_t scaled_x_q = (uint32_t)*current_x * multiplier_q16;
+        uint32_t scaled_y_q = (uint32_t)*current_y * multiplier_q16;
+        uint32_t next_x_q = (uint32_t)(*current_x + take) * multiplier_q16;
+        uint32_t next_y_q = (uint32_t)(*current_y + 1u) * multiplier_q16;
         uint16_t scaled_x = (uint16_t)(scaled_x_q >> 16);
         uint16_t scaled_y = (uint16_t)(scaled_y_q >> 16);
         uint16_t next_x = (uint16_t)((next_x_q + FONT_Q16_HALF) >> 16);
@@ -221,7 +221,7 @@ enum RasterReturnCode font_api_draw(uint16_t x, uint16_t y, enum FontAlignment a
             continue;
         }
 
-        enum RasterReturnCode rc = prv_render_glyph(glyph, font, x, y,  multiplier_q16, color, draw);
+        enum RasterReturnCode rc = prv_render_glyph(glyph, font, x, y, multiplier_q16, color, draw);
         if (rc != RASTER_RC_OK) {
             return rc;
         }
