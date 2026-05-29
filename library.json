@@ -24,7 +24,17 @@
   "license": "AGPL-3.0-only",
   "frameworks": "*",
   "platforms": "*",
-  "headers": ["raster.h", "raster-api.h", "box.h", "box-api.h", "label.h", "label-api.h", "font.h", "font-api.h", "colors.h"],
+  "headers": [
+    "raster.h",
+    "raster-api.h",
+    "box.h",
+    "box-api.h",
+    "label.h",
+    "label-api.h",
+    "font.h",
+    "font-api.h",
+    "colors.h"
+  ],
   "examples": [
     {
       "name": "Demo using direct rendering of glyphs",
@@ -34,5 +44,8 @@
   ],
   "export": {
     "include": ["src/**", "include/**", "tools/**"]
+  },
+  "build": {
+    "flags": ["-std=gnu23"]
   }
 }

@@ -12,8 +12,6 @@
  *     8-bit channel before being emitted.
  *
  *     Scaling uses Q16 fixed-point so the renderer never needs an FPU.
- *     A fast path bypasses the multiplications when the requested pixel
- *     size matches the font's native size.
  *
  *     Glyph lookup is delegated to a per-font switch-case function carried
  *     by the Font struct, so the library never has to walk a glyph array.
@@ -45,20 +43,19 @@
  * \return The product, rounded to the nearest integer.
  */
 EAGLETRT_STATIC_INLINE uint32_t prv_q16_multiply(uint32_t value, uint32_t multiplier_q16) {
-    return (value * multiplier_q16 + FONT_Q16_HALF) >> 16;
+    constexpr uint32_t shift = 16U;
+    return (value * multiplier_q16 + FONT_Q16_HALF) >> shift;
 }
 
 /*!
  * \brief Emit a single coverage run, splitting it at glyph row boundaries.
  *
  * \details The run starts at glyph-local position (\p *current_x, \p *ccurrent_y) and is
- *     advanced in place. When \p no_scale is true the run maps 1:1 to
- *     screen pixels; otherwise it goes through the Q16 scale.
+ *     advanced in place.
  *
  * \param[in]     alpha          Coverage value (already in the upper half of a byte).
  * \param[in]     count          Number of glyph-native pixels in the run.
  * \param[in]     glyph_width    Glyph width in native pixels.
- * \param[in]     no_scale       True when no scaling is required.
  * \param[in]     multiplier_q16 Q16 scaling factor (unused when \p no_scale is true).
  * \param[in]     origin_x       Screen X origin of the glyph.
  * \param[in]     origin_y       Screen Y origin of the glyph.
@@ -70,7 +67,7 @@ EAGLETRT_STATIC_INLINE uint32_t prv_q16_multiply(uint32_t value, uint32_t multip
  * \retval RASTER_RC_OK on success.
  * \retval RASTER_RC_ERROR if the draw callback reported an error.
  */
-EAGLETRT_STATIC enum RasterReturnCode prv_emit_run(uint8_t alpha, uint16_t count, uint16_t glyph_width, bool no_scale, uint32_t multiplier_q16, uint16_t origin_x, uint16_t origin_y, uint32_t base_argb, int16_t *current_x, int16_t *current_y, raster_draw_rectangle_callback draw) {
+EAGLETRT_STATIC enum RasterReturnCode prv_emit_run(uint8_t alpha, uint16_t count, uint16_t glyph_width, uint32_t multiplier_q16, uint16_t origin_x, uint16_t origin_y, uint32_t base_argb, int16_t *current_x, int16_t *current_y, raster_draw_rectangle_callback draw) {
     if (alpha < FONT_ALPHA_THRESHOLD) {
         int16_t total = *current_x + count;
         *current_x = total % glyph_width;
@@ -89,25 +86,18 @@ EAGLETRT_STATIC enum RasterReturnCode prv_emit_run(uint8_t alpha, uint16_t count
         uint16_t rectangle_w;
         uint16_t rectangle_h;
 
-        if (no_scale) {
-            rectangle_x = (uint16_t)(origin_x + (uint16_t)*current_x);
-            rectangle_y = (uint16_t)(origin_y + (uint16_t)*current_y);
-            rectangle_w = take;
-            rectangle_h = 1u;
-        } else {
-            uint32_t scaled_x_q = (uint32_t)(uint16_t)*current_x * multiplier_q16;
-            uint32_t scaled_y_q = (uint32_t)(uint16_t)*current_y * multiplier_q16;
-            uint32_t next_x_q = (uint32_t)((uint16_t)*current_x + take) * multiplier_q16;
-            uint32_t next_y_q = (uint32_t)((uint16_t)*current_y + 1u) * multiplier_q16;
-            uint16_t scaled_x = (uint16_t)(scaled_x_q >> 16);
-            uint16_t scaled_y = (uint16_t)(scaled_y_q >> 16);
-            uint16_t next_x = (uint16_t)((next_x_q + FONT_Q16_HALF) >> 16);
-            uint16_t next_y = (uint16_t)((next_y_q + FONT_Q16_HALF) >> 16);
-            rectangle_x = (uint16_t)(origin_x + scaled_x);
-            rectangle_y = (uint16_t)(origin_y + scaled_y);
-            rectangle_w = next_x > scaled_x ? (uint16_t)(next_x - scaled_x) : 1U;
-            rectangle_h = next_y > scaled_y ? (uint16_t)(next_y - scaled_y) : 1U;
-        }
+        uint32_t scaled_x_q = (uint32_t)(uint16_t)*current_x * multiplier_q16;
+        uint32_t scaled_y_q = (uint32_t)(uint16_t)*current_y * multiplier_q16;
+        uint32_t next_x_q = (uint32_t)((uint16_t)*current_x + take) * multiplier_q16;
+        uint32_t next_y_q = (uint32_t)((uint16_t)*current_y + 1u) * multiplier_q16;
+        uint16_t scaled_x = (uint16_t)(scaled_x_q >> 16);
+        uint16_t scaled_y = (uint16_t)(scaled_y_q >> 16);
+        uint16_t next_x = (uint16_t)((next_x_q + FONT_Q16_HALF) >> 16);
+        uint16_t next_y = (uint16_t)((next_y_q + FONT_Q16_HALF) >> 16);
+        rectangle_x = (uint16_t)(origin_x + scaled_x);
+        rectangle_y = (uint16_t)(origin_y + scaled_y);
+        rectangle_w = next_x > scaled_x ? (uint16_t)(next_x - scaled_x) : 1u;
+        rectangle_h = next_y > scaled_y ? (uint16_t)(next_y - scaled_y) : 1u;
 
         if (draw(rectangle_x, rectangle_y, rectangle_w, rectangle_h, color) != RASTER_RC_OK) {
             return RASTER_RC_ERROR;
@@ -131,7 +121,6 @@ EAGLETRT_STATIC enum RasterReturnCode prv_emit_run(uint8_t alpha, uint16_t count
  * \param[in] font            Font owning the glyph.
  * \param[in] origin_x        Screen X origin of the glyph.
  * \param[in] origin_y        Screen Y origin of the glyph.
- * \param[in] no_scale        True when no scaling is required.
  * \param[in] multiplier_q16  Q16 scaling factor (unused when \p no_scale is true).
  * \param[in] color           Base text color.
  * \param[in] draw            Rectangle-fill callback.
@@ -139,7 +128,7 @@ EAGLETRT_STATIC enum RasterReturnCode prv_emit_run(uint8_t alpha, uint16_t count
  * \retval RASTER_RC_OK on success.
  * \retval RASTER_RC_ERROR if the draw callback reported an error.
  */
-EAGLETRT_STATIC enum RasterReturnCode prv_render_glyph(const struct FontGlyph *glyph, const struct Font *font, uint16_t origin_x, uint16_t origin_y, bool no_scale, uint32_t multiplier_q16, struct Color color, raster_draw_rectangle_callback draw) {
+EAGLETRT_STATIC enum RasterReturnCode prv_render_glyph(const struct FontGlyph *glyph, const struct Font *font, uint16_t origin_x, uint16_t origin_y, uint32_t multiplier_q16, struct Color color, raster_draw_rectangle_callback draw) {
     const uint16_t glyph_width = glyph->width;
     const uint16_t glyph_height = glyph->height;
     if (glyph_width == 0U || glyph_height == 0U) {
@@ -163,13 +152,13 @@ EAGLETRT_STATIC enum RasterReturnCode prv_render_glyph(const struct FontGlyph *g
         uint8_t alpha2 = (uint8_t)((raw & 0x0FU) << 4);
 
         if (count1 > 0U) {
-            enum RasterReturnCode rc = prv_emit_run(alpha1, count1, glyph_width, no_scale, multiplier_q16, origin_x, origin_y, base_argb, &current_x, &current_y, draw);
+            enum RasterReturnCode rc = prv_emit_run(alpha1, count1, glyph_width, multiplier_q16, origin_x, origin_y, base_argb, &current_x, &current_y, draw);
             if (rc != RASTER_RC_OK) {
                 return rc;
             }
         }
         if (count2 > 0U) {
-            enum RasterReturnCode rc = prv_emit_run(alpha2, count2, glyph_width, no_scale, multiplier_q16, origin_x, origin_y, base_argb, &current_x, &current_y, draw);
+            enum RasterReturnCode rc = prv_emit_run(alpha2, count2, glyph_width, multiplier_q16, origin_x, origin_y, base_argb, &current_x, &current_y, draw);
             if (rc != RASTER_RC_OK) {
                 return rc;
             }
@@ -191,8 +180,7 @@ uint16_t font_api_length(const char *text, uint16_t pixel_size, const struct Fon
         return 0U;
     }
 
-    const bool no_scale = (pixel_size == font->base_size);
-    const uint32_t mul_q16 = no_scale ? 0u : ((uint32_t)pixel_size << 16) / font->base_size;
+    const uint32_t mul_q16 = ((uint32_t)pixel_size << 16) / font->base_size;
 
     uint32_t total = 0u;
     for (const char *p = text; *p != '\0'; ++p) {
@@ -200,7 +188,7 @@ uint16_t font_api_length(const char *text, uint16_t pixel_size, const struct Fon
         if (glyph == NULL) {
             continue;
         }
-        total += no_scale ? glyph->width : prv_q16_multiply(glyph->width, mul_q16);
+        total += prv_q16_multiply(glyph->width, mul_q16);
     }
 
     return total > 0xFFFFU ? 0xFFFFU : (uint16_t)total;
@@ -225,8 +213,7 @@ enum RasterReturnCode font_api_draw(uint16_t x, uint16_t y, enum FontAlignment a
         }
     }
 
-    const bool no_scale = (pixel_size == font->base_size);
-    const uint32_t multiplier_q16 = no_scale ? 0U : ((uint32_t)pixel_size << 16) / font->base_size;
+    const uint32_t multiplier_q16 = ((uint32_t)pixel_size << 16) / font->base_size;
 
     for (const char *character = text; *character != '\0'; ++character) {
         const struct FontGlyph *glyph = font_api_find_glyph(font, *character);
@@ -234,12 +221,12 @@ enum RasterReturnCode font_api_draw(uint16_t x, uint16_t y, enum FontAlignment a
             continue;
         }
 
-        enum RasterReturnCode rc = prv_render_glyph(glyph, font, x, y, no_scale, multiplier_q16, color, draw);
+        enum RasterReturnCode rc = prv_render_glyph(glyph, font, x, y,  multiplier_q16, color, draw);
         if (rc != RASTER_RC_OK) {
             return rc;
         }
 
-        const uint16_t advance = no_scale ? glyph->width : (uint16_t)prv_q16_multiply(glyph->width, multiplier_q16);
+        const uint16_t advance = (uint16_t)prv_q16_multiply(glyph->width, multiplier_q16);
         x += advance;
     }
 
