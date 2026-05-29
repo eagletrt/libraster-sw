@@ -108,8 +108,17 @@ jobs:
           if [ ! -f "platformio.ini" ]; then
             printf "[env:latest_stable]\n" > platformio.ini
             printf "platform = native\n" >> platformio.ini
-            printf "build_flags = -Itest/include\n" >> platformio.ini
-            printf" lib_deps = Unity, ./\n" >> platformio.ini
+            printf "lib_deps = ./\n" >> platformio.ini
+            printf "check_tool = clangtidy\n" >> platformio.ini
+            printf "check_flags =\n" >> platformio.ini
+            printf "    clangtidy: --checks=-*,cert-*,clang-analyzer-*,bugprone-*,performance-*,readability-*,-bugprone-easily-swappable-parameters\n" >> platformio.ini
+            printf "    clangtidy: --warnings-as-errors=clang-analyzer-*,bugprone-*\n" >> platformio.ini
+            printf "    clangtidy: --header-filter=^(?:.*/)?(?:include|src)/.*\.[ch]$\n" >> platformio.ini
+            printf "    clangtidy: --system-headers=false\n" >> platformio.ini
+            printf "check_src_filters =\n" >> platformio.ini
+            printf "    -<**>\n" >> platformio.ini
+            printf "    +<src/**>\n" >> platformio.ini
+            printf "    +<include/**>\n" >> platformio.ini
             echo "Created platformio.ini"
           fi
           pio check
