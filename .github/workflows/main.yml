@@ -11,7 +11,9 @@ on:
 jobs:
   test:
     name: Unit Tests
-    runs-on: ubuntu-latest
+    runs-on:
+      group: ci-runners
+      labels: Linux
 
     steps:
       - name: Checkout
@@ -65,7 +67,9 @@ jobs:
 
   check:
     name: Static Code Analysis
-    runs-on: ubuntu-latest
+    runs-on:
+      group: ci-runners
+      labels: Linux
     # Run only when:
     #  - push to branch dev (e.g. merge commit pushed to dev), OR
     #  - pull_request event with action closed and merged == true targeting dev
