@@ -3,13 +3,13 @@
  * \date 2025-03-21
  * \author Alessandro Bridi [ale.bridi15@gmail.com]
  *
- * \brief LibRaster API functions
+ * \brief LibRaster public API.
  *
- * \details A rasterizer is a software renderer that works by writing pixels to
- *      a framebuffer.
- *      This implementation lets the user define 3 callbacks that defines the
- *      technique used to write them, so that hardware accelerators can be used
- *      to archive big speedups.
+ * \details A rasterizer is a software renderer that writes pixels to a
+ *     framebuffer. Libraster lets the user define a single rectangle-fill
+ *     callback so that hardware accelerators (e.g. STM32 DMA2D) can be
+ *     used transparently. No dynamic allocation is performed and the
+ *     handler holds no internal state beyond the user-provided pointers.
  */
 
 #ifndef RASTER_API_H
@@ -18,117 +18,56 @@
 #include "raster.h"
 
 /*!
- * \brief Initializes the RasterHandler struct
+ * \brief Initialize a RasterHandler.
  *
- * \details Sets the callbacks inside the RasterHandler struct
- *     passed as argument.
- *     Clear screen callback is optional, and can be set to NULL when RASTER_PARTIAL
- *     is equal to 1.
+ * \details The presence of a clear callback selects the render mode. Pass
+ *     NULL to opt into partial mode (the common case): only boxes flagged
+ *     as updated are redrawn each frame. Pass a non-NULL clear callback to
+ *     opt into full-redraw mode: every frame starts by clearing the screen
+ *     and ends with every box drawn.
  *
- * \param[out] hras Pointer to the RasterHandler struct to initialize
- * \param[in] interface Pointer to the defined interface
- * \param[in] size Number of boxes in the interface
- * \param[in] draw_line Draw line callback
- * \param[in] draw_rectangle Draw rectangle callback
- * \param[in] clear_screen Clear screen callback
+ * \param[out] handler   Handler to initialize.
+ * \param[in]  interface Interface (flat array of boxes) to mount.
+ * \param[in]  box_count Number of boxes in \p interface.
+ * \param[in]  draw      Rectangle-fill callback.
+ * \param[in]  clear     Clear-screen callback, or NULL to use partial mode.
+ *
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_NULL_POINTER if \p handler, \p interface, or \p draw is
+ *     NULL, or if \p size is 0.
  */
-void raster_api_init(struct RasterHandler *hras, struct RasterBox *interface, uint16_t size, font_draw_line_callback draw_line, raster_draw_rectangle_callback draw_rectangle, raster_clear_screen_callback clear_screen);
+enum RasterReturnCode raster_api_init(struct RasterHandler *handler, struct Box *interface, uint16_t box_count, raster_draw_rectangle_callback draw, raster_clear_screen_callback clear);
 
 /*!
- * \brief Sets the interface inside the RasterHandler struct
+ * \brief Replace the interface mounted on a handler.
  *
- * \details Sets the interface and size inside the RasterHandler struct
- *     passed as argument.
+ * \details Useful for swapping screens (main view, popup, menu, etc.).
  *
- * \param[out] hras Pointer to the RasterHandler struct to modify
- * \param[in] interface Pointer to the defined interface
- * \param[in] size Number of boxes in the interface
+ * \param[in,out] handler   Handler to update.
+ * \param[in]     interface New interface to mount.
+ * \param[in]     box_count Number of boxes in \p interface.
+ *
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_NULL_POINTER if \p handler or \p interface is NULL,
+ *     or if \p size is 0.
  */
-void raster_api_set_interface(struct RasterHandler *hras, struct RasterBox *interface, uint16_t size);
+enum RasterReturnCode raster_api_set_interface(struct RasterHandler *handler, struct Box *interface, uint16_t box_count);
 
 /*!
- * \brief Renders the whole interface
+ * \brief Render the current interface.
  *
- * \details For every box, draws it using the callbacks that are passed
- *      as arguments to the function.
+ * \details In partial mode (clear callback unset) only boxes whose \c
+ *     updated flag is set are redrawn, and the flag is cleared after each
+ *     successful redraw. In full-redraw mode (clear callback set) the clear
+ *     callback runs first and every box is drawn afterwards.
  *
- *      The signature of the function changes based on the \c RASTER_PARTIAL
- *      env variable, adding or removing the \c clear_screen callback.
+ * \param[in] handler Handler to render.
  *
- * \param[in] hras Pointer to the RasterHandler struct to use
- * \param[in] boxes Pointer to the defined interface
- * \param[in] num Number of boxes in the interface
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_NULL_POINTER if \p handler, \p handler->draw, or
+ *     \p handler->interface is NULL.
+ * \retval RASTER_RC_ERROR if a callback reported an error.
  */
-void raster_api_render(struct RasterHandler *hras);
-
-/*!
- * \brief Utility to get a Box based on id value
- *
- * \details Used to retrieve a specific box that needs to be modified.
- *
- * \param[in] boxes Pointer to the defined interface
- * \param[in] num Number of Box in the interface
- * \param[in] id ID of the box to search for
- *
- * \return struct Box*
- *     - Box pointer if found
- *     - NULL if not found
- */
-struct RasterBox *raster_api_get_box(struct RasterBox *boxes, uint16_t num, uint16_t id);
-
-/*!
- * \brief Utility to populate struct Label
- *
- * \param[out] label The label struct to populate
- * \param[in] value Union of possible value types
- * \param[in] type Type of the value passed
- * \param[in] format Formatting options for the value
- * \param[in] pos Position of the text
- * \param[in] font Font name (defined in generation)
- * \param[in] size Text size
- * \param[in] align Alignment of font
- * \param[in] color Color of the text
- */
-void raster_api_create_label(struct RasterLabel *label, union RasterLabelData value, enum RasterLabelDataType type, union RasterLabelFormat format, struct RasterCoords pos, enum FontName font, uint16_t size, enum FontAlign align, struct Color color);
-
-/*!
- * \brief Utility to set label data inside a Box
- *
- * \param[in,out] box The box to modify
- * \param[in] value Union of possible value types
- */
-void raster_api_set_label_data(struct RasterBox *box, union RasterLabelData value);
-
-/*!
- * \brief Utility to update label formatting options
- *
- * \param[in,out] box The box to modify
- * \param[in] format Formatting options for the value
- */
-void raster_api_set_label_format(struct RasterBox *box, union RasterLabelFormat format);
-
-/*!
- * \brief Helper to create default integer formatting options
- *
- * \param[in] is_unsigned Treat as unsigned integer
- * \return struct RasterIntFormat with specified options
- */
-struct RasterIntFormat raster_api_int_format(bool is_unsigned);
-
-/*!
- * \brief Helper to create default float formatting options
- *
- * \param[in] precision Number of digits after decimal point
- * \return struct RasterFloatFormat with specified options
- */
-struct RasterFloatFormat raster_api_float_format(uint8_t precision);
-
-/*!
- * \brief Helper to create default string formatting options
- *
- * \param[in] max_length Maximum string length (0 for no limit)
- * \return struct RasterStringFormat with specified options
- */
-struct RasterStringFormat raster_api_string_format(uint16_t max_length);
+enum RasterReturnCode raster_api_render(struct RasterHandler *handler);
 
 #endif // RASTER_API_H

@@ -11,7 +11,9 @@ on:
 jobs:
   test:
     name: Unit Tests
-    runs-on: ubuntu-latest
+    runs-on:
+      group: ci-runners
+      labels: Linux
 
     steps:
       - name: Checkout
@@ -39,19 +41,32 @@ jobs:
       - name: Run Unit Tests (or generate minimal .ini)
         run: |
           if [ ! -f "platformio.ini" ]; then
-            printf "[env:latest_stable]\nplatform = native\nlib_deps = Unity, ./\n" > platformio.ini
+            printf "[env:latest_stable]\n" > platformio.ini
+            printf "platform = native\n" >> platformio.ini
+            printf "build_flags =\n" >> platformio.ini
+            printf "    -Itest/include\n" >> platformio.ini
+            printf "    -DEAGLETRT_STATIC=\n" >> platformio.ini
+            printf "    -DEAGLETRT_STATIC_INLINE=\n" >> platformio.ini
+            printf "lib_deps = Unity, ./\n" >> platformio.ini
             echo "Created platformio.ini"
           fi
           pio test -e latest_stable
 
       - name: Run Example
         run: |
-          python tools/generator.py --json tools/fonts.json
-          pio ci -l . --exclude=src/test --exclude=src/examples -O "framework=stm32cube" examples/direct-font-rendering.c -b nucleo_h723zg
+          python tools/generator.py --json tools/fonts.json --output tools/generated
+          pio ci -l . \
+              -O "framework=stm32cube" \
+              -O "build_flags=-I$(pwd)/tools/generated" \
+              -O "platform_packages=toolchain-gccarmnoneeabi@=1.140201.0" \
+              examples/direct-font-rendering.c tools/generated/raster-fonts.c \
+              -b nucleo_h723zg
 
   check:
     name: Static Code Analysis
-    runs-on: ubuntu-latest
+    runs-on:
+      group: ci-runners
+      labels: Linux
     # Run only when:
     #  - push to branch dev (e.g. merge commit pushed to dev), OR
     #  - pull_request event with action closed and merged == true targeting dev
@@ -85,7 +100,19 @@ jobs:
       - name: Run Static Code Analysis
         run: |
           if [ ! -f "platformio.ini" ]; then
-            printf "[env:latest_stable]\nplatform = native\nlib_deps = Unity, ./\n" > platformio.ini
+            printf "[env:latest_stable]\n" > platformio.ini
+            printf "platform = native\n" >> platformio.ini
+            printf "lib_deps = ./\n" >> platformio.ini
+            printf "check_tool = clangtidy\n" >> platformio.ini
+            printf "check_flags =\n" >> platformio.ini
+            printf "    clangtidy: --checks=-*,cert-*,clang-analyzer-*,bugprone-*,performance-*,readability-*,-bugprone-easily-swappable-parameters\n" >> platformio.ini
+            printf "    clangtidy: --warnings-as-errors=clang-analyzer-*,bugprone-*\n" >> platformio.ini
+            printf "    clangtidy: --header-filter=^(?:.*/)?(?:include|src)/.*\.[ch]$\n" >> platformio.ini
+            printf "    clangtidy: --system-headers=false\n" >> platformio.ini
+            printf "check_src_filters =\n" >> platformio.ini
+            printf "    -<**>\n" >> platformio.ini
+            printf "    +<src/**>\n" >> platformio.ini
+            printf "    +<include/**>\n" >> platformio.ini
             echo "Created platformio.ini"
           fi
           pio check
