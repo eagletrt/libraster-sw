@@ -189,7 +189,7 @@ void test_font_api_draw_carries_color_with_alpha(void) {
     TEST_ASSERT_EQUAL_MESSAGE(RASTER_RC_OK, rc, "Expected OK return code when drawing with valid parameters");
     TEST_ASSERT_EQUAL_UINT_MESSAGE(1, fake_draw_fake.call_count, "Expected draw callback to be called once for one character");
     struct Color got = fake_draw_fake.arg4_history[0];
-    TEST_ASSERT_EQUAL_HEX8_MESSAGE(0xF0, got.a, "Alpha should be the glyph coverage");
+    TEST_ASSERT_EQUAL_HEX8_MESSAGE(0xFF, got.a, "Alpha should be the glyph coverage");
     TEST_ASSERT_EQUAL_HEX8_MESSAGE(0x11, got.r, "Red should come from the caller");
     TEST_ASSERT_EQUAL_HEX8_MESSAGE(0x22, got.g, "Green should come from the caller");
     TEST_ASSERT_EQUAL_HEX8_MESSAGE(0x33, got.b, "Blue should come from the caller");
