@@ -30,14 +30,14 @@ enum FontAlignment {
  *
  * \details Glyphs are stored as RLE-compressed SDF coverage data. The actual
  *     bytes live in Font::sdf_data; this struct only describes the slice
- *     belonging to one character.
+ *     belonging to one Unicode codepoint.
  */
 struct FontGlyph {
-    char character;  /*!< Extended-ASCII character represented by this glyph */
-    uint32_t offset; /*!< Byte offset of the glyph data inside Font::sdf_data */
-    uint16_t size;   /*!< Length of the glyph data in bytes */
-    uint16_t width;  /*!< Native pixel width of the glyph */
-    uint16_t height; /*!< Native pixel height of the glyph */
+    uint32_t codepoint; /*!< Unicode codepoint represented by this glyph */
+    uint32_t offset;    /*!< Byte offset of the glyph data inside Font::sdf_data */
+    uint16_t size;      /*!< Length of the glyph data in bytes */
+    uint16_t width;     /*!< Native pixel width of the glyph */
+    uint16_t height;    /*!< Native pixel height of the glyph */
 };
 
 /*!
@@ -48,12 +48,12 @@ struct FontGlyph {
  *     library never iterates the glyph array directly; it always goes
  *     through the function pointer stored in struct Font.
  *
- * \param[in] character Character to look up.
+ * \param[in] codepoint Unicode codepoint to look up.
  *
- * \return Pointer to the matching glyph, or NULL if the character is not in
+ * \return Pointer to the matching glyph, or NULL if the codepoint is not in
  *     the font.
  */
-typedef const struct FontGlyph *(*font_find_glyph_callback)(char character);
+typedef const struct FontGlyph *(*font_find_glyph_callback)(uint32_t codepoint);
 
 /*!
  * \brief A rasterizable font.

@@ -120,14 +120,9 @@ def build_font_data(font_json: dict, json_dir: Path) -> dict:
         offset = len(sdf_stream)
         sdf_stream.extend(item for couple in compressed for item in couple)
 
-        # Escape characters that would break the C literal.
-        if char == "'" or char == '\\':
-            char_literal = "\\" + char
-        else:
-            char_literal = char
-
         glyphs.append({
-            "char": char_literal,
+            "codepoint": ord(char),
+            "display": char if char.isprintable() and char != "*/" else f"U+{ord(char):04X}",
             "offset": offset,
             "size": len(compressed) * 2,
             "width": width,

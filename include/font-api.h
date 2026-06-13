@@ -18,18 +18,18 @@
 #include "raster.h"
 
 /*!
- * \brief Look up the glyph for a character in a font.
+ * \brief Look up the glyph for a Unicode codepoint in a font.
  *
  * \details Convenience wrapper around \c font->find_glyph. Returns NULL on
  *     malformed inputs so callers can chain it without extra checks.
  *
- * \param[in] font       Font to search in. May be NULL.
- * \param[in] character  Character to look up.
+ * \param[in] font      Font to search in. May be NULL.
+ * \param[in] codepoint Unicode codepoint to look up.
  *
  * \return Pointer to the matching glyph, or NULL if \p font is NULL, has no
- *     find function, or the character is not in the font.
+ *     find function, or the codepoint is not in the font.
  */
-const struct FontGlyph *font_api_find_glyph(const struct Font *font, char character);
+const struct FontGlyph *font_api_find_glyph(const struct Font *font, uint32_t codepoint);
 
 /*!
  * \brief Render a string at the given anchor position.
@@ -38,7 +38,8 @@ const struct FontGlyph *font_api_find_glyph(const struct Font *font, char charac
  * \param[in] y          Top Y position of the rendered text.
  * \param[in] alignment  Horizontal alignment of the text relative to (x, y).
  * \param[in] font       Font to render with.
- * \param[in] text       NUL-terminated string to render.
+ * \param[in] text       NUL-terminated UTF-8 string to render. Invalid
+ *                       UTF-8 bytes are skipped one byte at a time.
  * \param[in] color      Base color; the alpha channel is replaced per pixel
  *                       by the glyph's coverage value.
  * \param[in] pixel_size Target pixel height of the rendered text.
@@ -56,7 +57,8 @@ enum RasterReturnCode font_api_draw(uint16_t x, uint16_t y, enum FontAlignment a
 /*!
  * \brief Compute the rendered pixel width of a string.
  *
- * \param[in] text       NUL-terminated string to measure.
+ * \param[in] text       NUL-terminated UTF-8 string to measure. Invalid
+ *                       UTF-8 bytes are skipped one byte at a time.
  * \param[in] pixel_size Target pixel height.
  * \param[in] font       Font to measure with.
  *
