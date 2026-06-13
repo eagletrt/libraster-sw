@@ -143,25 +143,17 @@ EAGLETRT_STATIC enum RasterReturnCode prv_render_glyph(const struct FontGlyph *g
     int16_t current_y = 0;
 
     while (data + 3 <= end && current_y < (int16_t)glyph_height) {
-        uint8_t raw = data[0];
-        uint8_t count1 = data[1];
-        uint8_t count2 = data[2];
-        data += 3;
+        uint8_t alpha = data[0];
+        uint8_t count = data[1];
+        data += 2;
 
-        uint8_t alpha1 = (uint8_t)(raw & 0xF0U);
-        uint8_t alpha2 = (uint8_t)((raw & 0x0FU) << 4);
-
-        if (count1 > 0U) {
-            enum RasterReturnCode rc = prv_emit_run(alpha1, count1, glyph_width, multiplier_q16, origin_x, origin_y, base_argb, &current_x, &current_y, draw);
-            if (rc != RASTER_RC_OK) {
-                return rc;
-            }
+        if (count == 0U) {
+            continue;
         }
-        if (count2 > 0U) {
-            enum RasterReturnCode rc = prv_emit_run(alpha2, count2, glyph_width, multiplier_q16, origin_x, origin_y, base_argb, &current_x, &current_y, draw);
-            if (rc != RASTER_RC_OK) {
-                return rc;
-            }
+
+        enum RasterReturnCode rc = prv_emit_run(alpha, count, glyph_width, multiplier_q16, origin_x, origin_y, base_argb, &current_x, &current_y, draw);
+        if (rc != RASTER_RC_OK) {
+            return rc;
         }
     }
 

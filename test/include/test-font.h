@@ -27,7 +27,7 @@
  *     - byte 2: count for the second run (0 pixels, skipped)
  */
 static const uint8_t test_sdf_data[] = {
-    0xFF, 1, 0,
+    0xFF, 1, 0xFF, 0,
 };
 
 static const struct FontGlyph test_glyphs[] = {
