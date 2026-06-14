@@ -39,6 +39,21 @@
  */
 #define FONT_Q16_HALF (0x8000U)
 
+#define FONT_UTF8_1_BYTE_MASK (0x80U)                  /*!< Mask to identify 1-byte (ASCII) UTF-8 sequences. */
+#define FONT_UTF8_2_BYTE_MASK (0xE0U)                  /*!< Mask to identify 2-byte UTF-8 sequences. */
+#define FONT_UTF8_3_BYTE_MASK (0xF0U)                  /*!< Mask to identify 3-byte UTF-8 sequences. */
+#define FONT_UTF8_4_BYTE_MASK (0xF8U)                  /*!< Mask to identify 4-byte UTF-8 sequences. */
+#define FONT_UTF8_1_BYTE_MASK_RESULT (0x00U)           /*!< Expected result after masking the lead byte of a 1-byte UTF-8 sequence. */
+#define FONT_UTF8_2_BYTE_MASK_RESULT (0xC0U)           /*!< Expected result after masking the lead byte of a 2-byte UTF-8 sequence. */
+#define FONT_UTF8_3_BYTE_MASK_RESULT (0xE0U)           /*!< Expected result after masking the lead byte of a 3-byte UTF-8 sequence. */
+#define FONT_UTF8_4_BYTE_MASK_RESULT (0xF0U)           /*!< Expected result after masking the lead byte of a 4-byte UTF-8 sequence. */
+#define FONT_UTF8_CONTINUATION_MASK (0xC0U)            /*!< Mask to identify UTF-8 continuation bytes. */
+#define FONT_UTF8_CONTINUATION_MASK_RESULT (0x80U)     /*!< Expected result after masking a UTF-8 continuation byte. */
+#define FONT_UTF8_CONTINUATION_EXTRACTION_MASK (0x3FU) /*!< Mask to extract the payload bits from a UTF-8 continuation byte. */
+#define FONT_UTF8_2_BYTE_EXTRACTION_MASK (0x1FU)       /*!< Mask to extract the payload bits from the lead byte of a 2-byte UTF-8 sequence. */
+#define FONT_UTF8_3_BYTE_EXTRACTION_MASK (0x0FU)       /*!< Mask to extract the payload bits from the lead byte of a 3-byte UTF-8 sequence. */
+#define FONT_UTF8_4_BYTE_EXTRACTION_MASK (0x07U)       /*!< Mask to extract the payload bits from the lead byte of a 4-byte UTF-8 sequence. */
+
 /*!
  * \brief Multiply an unsigned value by a Q16 multiplier with rounding.
  *
@@ -70,37 +85,38 @@ EAGLETRT_STATIC_INLINE uint32_t prv_q16_multiply(uint32_t value, uint32_t multip
 EAGLETRT_STATIC uint8_t prv_utf8_decode(const char *text, uint32_t *codepoint) {
     const uint8_t lead = (uint8_t)text[0];
 
-    if ((lead & 0x80U) == 0U) {
+    // if it's standard ASCII
+    if ((lead & FONT_UTF8_1_BYTE_MASK) == FONT_UTF8_1_BYTE_MASK_RESULT) {
         *codepoint = lead;
         return 1U;
     }
 
-    uint8_t expected;
+    uint8_t expected_byte_count;
     uint32_t accumulator;
-    if ((lead & 0xE0U) == 0xC0U) {
-        expected = 2U;
-        accumulator = lead & 0x1FU;
-    } else if ((lead & 0xF0U) == 0xE0U) {
-        expected = 3U;
-        accumulator = lead & 0x0FU;
-    } else if ((lead & 0xF8U) == 0xF0U) {
-        expected = 4U;
-        accumulator = lead & 0x07U;
+    if ((lead & FONT_UTF8_2_BYTE_MASK) == FONT_UTF8_2_BYTE_MASK_RESULT) {
+        expected_byte_count = 2U;
+        accumulator = lead & FONT_UTF8_2_BYTE_EXTRACTION_MASK;
+    } else if ((lead & FONT_UTF8_3_BYTE_MASK) == FONT_UTF8_3_BYTE_MASK_RESULT) {
+        expected_byte_count = 3U;
+        accumulator = lead & FONT_UTF8_3_BYTE_EXTRACTION_MASK;
+    } else if ((lead & FONT_UTF8_4_BYTE_MASK) == FONT_UTF8_4_BYTE_MASK_RESULT) {
+        expected_byte_count = 4U;
+        accumulator = lead & FONT_UTF8_4_BYTE_EXTRACTION_MASK;
     } else {
         *codepoint = 0U;
         return 1U;
     }
 
-    for (uint8_t i = 1U; i < expected; ++i) {
+    for (uint8_t i = 1U; i < expected_byte_count; ++i) {
         const uint8_t continuation = (uint8_t)text[i];
-        if ((continuation & 0xC0U) != 0x80U) {
+        if ((continuation & FONT_UTF8_CONTINUATION_MASK) != FONT_UTF8_CONTINUATION_MASK_RESULT) {
             *codepoint = 0U;
             return 1U;
         }
-        accumulator = (accumulator << 6) | (continuation & 0x3FU);
+        accumulator = (accumulator << 6) | (continuation & FONT_UTF8_CONTINUATION_EXTRACTION_MASK);
     }
     *codepoint = accumulator;
-    return expected;
+    return expected_byte_count;
 }
 
 /*!
@@ -231,7 +247,7 @@ uint16_t font_api_length(const char *text, uint16_t pixel_size, const struct Fon
     const uint32_t mul_q16 = ((uint32_t)pixel_size << 16) / font->base_size;
 
     uint32_t total = 0u;
-    for (const char *p = text; *p != '\0'; ) {
+    for (const char *p = text; *p != '\0';) {
         uint32_t codepoint = 0U;
         p += prv_utf8_decode(p, &codepoint);
         if (codepoint == 0U) {
@@ -268,7 +284,7 @@ enum RasterReturnCode font_api_draw(uint16_t x, uint16_t y, enum FontAlignment a
 
     const uint32_t multiplier_q16 = ((uint32_t)pixel_size << 16) / font->base_size;
 
-    for (const char *p = text; *p != '\0'; ) {
+    for (const char *p = text; *p != '\0';) {
         uint32_t codepoint = 0U;
         p += prv_utf8_decode(p, &codepoint);
         if (codepoint == 0U) {
