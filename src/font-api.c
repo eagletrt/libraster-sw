@@ -6,15 +6,16 @@
  * \brief Glyph rendering implementation.
  *
  * \details Glyphs are stored as RLE-compressed SDF coverage values, packed
- *     as triplets of (value_byte, count1, count2). The high nibble of the
- *     value byte is the alpha for the first run, the low nibble is the
- *     alpha for the second run; both are scaled to the high half of an
- *     8-bit channel before being emitted.
+ *     as pairs of (alpha_byte, count_byte). The alpha byte is the coverage
+ *     value for that run and is emitted unchanged into the ARGB alpha
+ *     channel.
  *
  *     Scaling uses Q16 fixed-point so the renderer never needs an FPU.
  *
- *     Glyph lookup is delegated to a per-font switch-case function carried
- *     by the Font struct, so the library never has to walk a glyph array.
+ *     Text input is UTF-8: the renderer decodes one Unicode codepoint at a
+ *     time and dispatches the lookup through the per-font switch-case
+ *     function carried by the Font struct, so the library never walks a
+ *     glyph array.
  */
 
 #include "font-api.h"
@@ -26,13 +27,28 @@
  * \brief Coverage values strictly below this threshold are treated as fully
  *     transparent and skipped, since the corresponding rectangle would be
  *     barely visible while still costing a callback.
+ *
+ * \details The user can override the threshold by defining \c FONT_ALPHA_THRESHOLD before including the header.
  */
+#ifndef FONT_ALPHA_THRESHOLD
 #define FONT_ALPHA_THRESHOLD (30U)
+#endif
 
 /*!
  * \brief Q16 fixed-point one half, used for rounding before the right shift.
  */
 #define FONT_Q16_HALF (0x8000U)
+
+constexpr uint8_t font_utf8_1_byte_mask = 0x80U;              /*!< Mask to identify 1-byte (ASCII) UTF-8 sequences. */
+constexpr uint8_t font_utf8_2_byte_mask = 0xE0U;              /*!< Mask to identify 2-byte UTF-8 sequences. */
+constexpr uint8_t font_utf8_3_byte_mask = 0xF0U;              /*!< Mask to identify 3-byte UTF-8 sequences. */
+constexpr uint8_t font_utf8_4_byte_mask = 0xF8U;              /*!< Mask to identify 4-byte UTF-8 sequences. */
+constexpr uint8_t font_utf8_1_byte_mask_result = 0x00U;       /*!< Expected result after masking a 1-byte UTF-8 sequence. */
+constexpr uint8_t font_utf8_2_byte_mask_result = 0xC0U;       /*!< Expected result after masking a 2-byte UTF-8 sequence. */
+constexpr uint8_t font_utf8_3_byte_mask_result = 0xE0U;       /*!< Expected result after masking a 3-byte UTF-8 sequence. */
+constexpr uint8_t font_utf8_4_byte_mask_result = 0xF0U;       /*!< Expected result after masking a 4-byte UTF-8 sequence. */
+constexpr uint8_t font_utf8_continuation_mask = 0xC0U;        /*!< Mask to identify UTF-8 continuation bytes. */
+constexpr uint8_t font_utf8_continuation_mask_result = 0x80U; /*!< Expected result after masking a UTF-8 continuation byte. */
 
 /*!
  * \brief Multiply an unsigned value by a Q16 multiplier with rounding.
@@ -45,6 +61,60 @@
 EAGLETRT_STATIC_INLINE uint32_t prv_q16_multiply(uint32_t value, uint32_t multiplier_q16) {
     constexpr uint32_t shift = 16U;
     return (value * multiplier_q16 + FONT_Q16_HALF) >> shift;
+}
+
+/*!
+ * \brief Decode one UTF-8 codepoint from a NUL-terminated byte stream.
+ *
+ * \details The leading byte selects the sequence length:
+ *     - \c 0xxxxxxx -> 1 byte  (ASCII)
+ *     - \c 110xxxxx -> 2 bytes
+ *     - \c 1110xxxx -> 3 bytes
+ *     - \c 11110xxx -> 4 bytes
+ *
+ * \param[in]  text       Pointer to a byte in a NULL-terminated UTF-8 string.
+ * \param[out] codepoint  Decoded Unicode codepoint, or 0 on invalid input.
+ *
+ * \return Number of bytes consumed from \p text (1..4). Never returns 0
+ *     so that a caller's iteration always makes progress.
+ */
+EAGLETRT_STATIC uint8_t prv_utf8_decode(const char *text, uint32_t *codepoint) {
+    const uint8_t lead = (uint8_t)text[0];
+
+    // if it's standard ASCII
+    if ((lead & font_utf8_1_byte_mask) == font_utf8_1_byte_mask_result) {
+        *codepoint = lead;
+        return 1U;
+    }
+
+    uint8_t expected_byte_count;
+    uint32_t accumulator;
+    // NOLINTBEGIN(bugprone-branch-clone)
+    if ((lead & font_utf8_2_byte_mask) == font_utf8_2_byte_mask_result) {
+        expected_byte_count = 2U;
+        accumulator = lead & (0xFFU ^ font_utf8_2_byte_mask);
+    } else if ((lead & font_utf8_3_byte_mask) == font_utf8_3_byte_mask_result) {
+        expected_byte_count = 3U;
+        accumulator = lead & (0xFFU ^ font_utf8_3_byte_mask);
+    } else if ((lead & font_utf8_4_byte_mask) == font_utf8_4_byte_mask_result) {
+        expected_byte_count = 4U;
+        accumulator = lead & (0xFFU ^ font_utf8_4_byte_mask);
+    } else {
+        *codepoint = 0U;
+        return 1U;
+    }
+    // NOLINTEND(bugprone-branch-clone)
+
+    for (uint8_t i = 1U; i < expected_byte_count; ++i) {
+        const uint8_t continuation = (uint8_t)text[i];
+        if ((continuation & font_utf8_continuation_mask) != font_utf8_continuation_mask_result) {
+            *codepoint = 0U;
+            return 1U;
+        }
+        accumulator = (accumulator << 6) | (continuation & (0xFFU ^ font_utf8_continuation_mask));
+    }
+    *codepoint = accumulator;
+    return expected_byte_count;
 }
 
 /*!
@@ -142,37 +212,29 @@ EAGLETRT_STATIC enum RasterReturnCode prv_render_glyph(const struct FontGlyph *g
     int16_t current_x = 0;
     int16_t current_y = 0;
 
-    while (data + 3 <= end && current_y < (int16_t)glyph_height) {
-        uint8_t raw = data[0];
-        uint8_t count1 = data[1];
-        uint8_t count2 = data[2];
-        data += 3;
+    while (data + 2 <= end && current_y < (int16_t)glyph_height) {
+        uint8_t alpha = data[0];
+        uint8_t count = data[1];
+        data += 2;
 
-        uint8_t alpha1 = (uint8_t)(raw & 0xF0U);
-        uint8_t alpha2 = (uint8_t)((raw & 0x0FU) << 4);
-
-        if (count1 > 0U) {
-            enum RasterReturnCode rc = prv_emit_run(alpha1, count1, glyph_width, multiplier_q16, origin_x, origin_y, base_argb, &current_x, &current_y, draw);
-            if (rc != RASTER_RC_OK) {
-                return rc;
-            }
+        if (count == 0U) {
+            continue;
         }
-        if (count2 > 0U) {
-            enum RasterReturnCode rc = prv_emit_run(alpha2, count2, glyph_width, multiplier_q16, origin_x, origin_y, base_argb, &current_x, &current_y, draw);
-            if (rc != RASTER_RC_OK) {
-                return rc;
-            }
+
+        enum RasterReturnCode return_code = prv_emit_run(alpha, count, glyph_width, multiplier_q16, origin_x, origin_y, base_argb, &current_x, &current_y, draw);
+        if (return_code != RASTER_RC_OK) {
+            return return_code;
         }
     }
 
     return RASTER_RC_OK;
 }
 
-const struct FontGlyph *font_api_find_glyph(const struct Font *font, char character) {
+const struct FontGlyph *font_api_find_glyph(const struct Font *font, uint32_t codepoint) {
     if (font == NULL || font->find_glyph == NULL) {
         return NULL;
     }
-    return font->find_glyph(character);
+    return font->find_glyph(codepoint);
 }
 
 uint16_t font_api_length(const char *text, uint16_t pixel_size, const struct Font *font) {
@@ -183,8 +245,13 @@ uint16_t font_api_length(const char *text, uint16_t pixel_size, const struct Fon
     const uint32_t mul_q16 = ((uint32_t)pixel_size << 16) / font->base_size;
 
     uint32_t total = 0u;
-    for (const char *p = text; *p != '\0'; ++p) {
-        const struct FontGlyph *glyph = font_api_find_glyph(font, *p);
+    for (const char *text_cursor = text; *text_cursor != '\0';) {
+        uint32_t codepoint = 0U;
+        text_cursor += prv_utf8_decode(text_cursor, &codepoint);
+        if (codepoint == 0U) {
+            continue;
+        }
+        const struct FontGlyph *glyph = font_api_find_glyph(font, codepoint);
         if (glyph == NULL) {
             continue;
         }
@@ -215,15 +282,20 @@ enum RasterReturnCode font_api_draw(uint16_t x, uint16_t y, enum FontAlignment a
 
     const uint32_t multiplier_q16 = ((uint32_t)pixel_size << 16) / font->base_size;
 
-    for (const char *character = text; *character != '\0'; ++character) {
-        const struct FontGlyph *glyph = font_api_find_glyph(font, *character);
+    for (const char *text_cursor = text; *text_cursor != '\0';) {
+        uint32_t codepoint = 0U;
+        text_cursor += prv_utf8_decode(text_cursor, &codepoint);
+        if (codepoint == 0U) {
+            continue;
+        }
+        const struct FontGlyph *glyph = font_api_find_glyph(font, codepoint);
         if (glyph == NULL) {
             continue;
         }
 
-        enum RasterReturnCode rc = prv_render_glyph(glyph, font, x, y, multiplier_q16, color, draw);
-        if (rc != RASTER_RC_OK) {
-            return rc;
+        enum RasterReturnCode return_code = prv_render_glyph(glyph, font, x, y, multiplier_q16, color, draw);
+        if (return_code != RASTER_RC_OK) {
+            return return_code;
         }
 
         const uint16_t advance = (uint16_t)prv_q16_multiply(glyph->width, multiplier_q16);

@@ -36,16 +36,16 @@ enum RasterReturnCode {
  *     On STM32 this maps naturally to a DMA2D fill; on SDL it maps to
  *     SDL_FillRect; on a software framebuffer it is two nested loops.
  *
- * \param[in] x     Top-left X position of the rectangle, in pixels.
- * \param[in] y     Top-left Y position of the rectangle, in pixels.
- * \param[in] w     Width of the rectangle, in pixels.
- * \param[in] h     Height of the rectangle, in pixels.
+ * \param[in] x       Top-left X position of the rectangle, in pixels.
+ * \param[in] y       Top-left Y position of the rectangle, in pixels.
+ * \param[in] width   Width of the rectangle, in pixels.
+ * \param[in] heigth  Height of the rectangle, in pixels.
  * \param[in] color Fill color in ARGB.
  *
  * \retval RASTER_RC_OK on success.
  * \retval RASTER_RC_ERROR on hardware/driver failure.
  */
-typedef enum RasterReturnCode (*raster_draw_rectangle_callback)(uint16_t x, uint16_t y, uint16_t w, uint16_t h, struct Color color);
+typedef enum RasterReturnCode (*raster_draw_rectangle_callback)(uint16_t x, uint16_t y, uint16_t width, uint16_t heigth, struct Color color);
 
 /*!
  * \brief Callback used to clear the entire framebuffer.

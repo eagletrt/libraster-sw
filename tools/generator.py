@@ -69,34 +69,19 @@ def compute_sdf(bitmap: np.ndarray, edge0: float, edge1: float) -> np.ndarray:
     return (smoothstep(edge0, edge1, normalized) * 255).astype(np.uint8)
 
 
-def compress_rle_4bit_paired(data: list[int]) -> list[tuple[int, int, int]]:
-    """Compress an alpha stream into (packed_value, count1, count2) triplets.
-
-    Each triplet packs two 4-bit alpha values and their run lengths. The high
-    nibble belongs to the first run, the low nibble to the second. Counts
-    are bounded to 255.
-    """
-    out: list[tuple[int, int, int]] = []
+def compress_rle(data: list[int]) -> list[tuple[int, int]]:
+    """Compress an alpha stream into (value, count) pairs. Counts are bounded to 255."""
+    out: list[tuple[int, int]] = []
     i = 0
     n = len(data)
     while i < n:
-        sdf1 = data[i] // 16
-        count1 = 1
+        value = data[i]
+        count = 1
         i += 1
-        while i < n and data[i] // 16 == sdf1 and count1 < 255:
-            count1 += 1
+        while i < n and data[i] == value and count < 255:
+            count += 1
             i += 1
-        if i < n:
-            sdf2 = data[i] // 16
-            count2 = 1
-            i += 1
-            while i < n and data[i] // 16 == sdf2 and count2 < 255:
-                count2 += 1
-                i += 1
-        else:
-            sdf2 = 0
-            count2 = 0
-        out.append(((sdf1 << 4) | sdf2, count1, count2))
+        out.append((value, count))
     return out
 
 
@@ -130,21 +115,16 @@ def build_font_data(font_json: dict, json_dir: Path) -> dict:
         bitmap = bitmap_8bit > 128
         sdf = compute_sdf(bitmap, edge0, edge1)
         pixels = list(sdf.flatten())
-        compressed = compress_rle_4bit_paired(pixels)
+        compressed = compress_rle(pixels)
 
         offset = len(sdf_stream)
-        sdf_stream.extend(item for triplet in compressed for item in triplet)
-
-        # Escape characters that would break the C literal.
-        if char == "'" or char == '\\':
-            char_literal = "\\" + char
-        else:
-            char_literal = char
+        sdf_stream.extend(item for couple in compressed for item in couple)
 
         glyphs.append({
-            "char": char_literal,
+            "codepoint": ord(char),
+            "display": char if char.isprintable() and char != "*/" else f"U+{ord(char):04X}",
             "offset": offset,
-            "size": len(compressed) * 3,
+            "size": len(compressed) * 2,
             "width": width,
             "height": height,
         })

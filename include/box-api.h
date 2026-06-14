@@ -18,16 +18,16 @@
  * \details The \c updated flag is set so the box is drawn at the next
  *     partial-mode render.
  *
- * \param[out] box   Box to initialize.
- * \param[in]  id    Caller-defined identifier used by \c box_api_find.
- * \param[in]  rect  Geometry on screen.
- * \param[in]  color Background color.
- * \param[in]  label Optional label, or NULL.
+ * \param[out] box     Box to initialize.
+ * \param[in]  box_id  Caller-defined identifier used by \c box_api_find.
+ * \param[in]  rect    Geometry on screen.
+ * \param[in]  color   Background color.
+ * \param[in]  label   Optional label, or NULL.
  *
  * \retval RASTER_RC_OK on success.
  * \retval RASTER_RC_NULL_POINTER if \p box is NULL.
  */
-enum RasterReturnCode box_api_init(struct Box *box, uint16_t id, struct BoxRectangle rect, struct Color color, struct Label *label);
+enum RasterReturnCode box_api_init(struct Box *box, uint16_t box_id, struct BoxRectangle rect, struct Color color, struct Label *label);
 
 /*!
  * \brief Reposition a box without altering its size or label content.
@@ -108,13 +108,13 @@ enum RasterReturnCode box_api_draw(const struct Box *box, raster_draw_rectangle_
  * \details Linear search; convenient for small interfaces (the typical case
  *     for embedded UIs) and decoupled from any particular handler.
  *
- * \param[in] boxes Array to search.
- * \param[in] size  Number of entries in \p boxes.
- * \param[in] id    Identifier to look up.
+ * \param[in] boxes   Array to search.
+ * \param[in] size    Number of entries in \p boxes.
+ * \param[in] box_id  Identifier to look up.
  *
  * \return Pointer to the matching box, or NULL if no box has that id or if
  *     \p boxes is NULL.
  */
-struct Box *box_api_find(struct Box *boxes, uint16_t size, uint16_t id);
+struct Box *box_api_find(struct Box *boxes, uint16_t size, uint16_t box_id);
 
 #endif // BOX_API_H
