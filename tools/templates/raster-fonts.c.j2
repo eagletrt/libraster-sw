@@ -16,14 +16,14 @@ static const uint8_t sdf_data_{{ font.name }}[] = {
 
 static const struct FontGlyph glyphs_{{ font.name }}[] = {
 {%- for g in font.glyphs %}
-    { '{{ g.char }}', {{ g.offset }}, {{ g.size }}, {{ g.width }}, {{ g.height }} },
+    { 0x{{ "%04X"|format(g.codepoint) }}, {{ g.offset }}, {{ g.size }}, {{ g.width }}, {{ g.height }} }, /* {{ g.display }} */
 {%- endfor %}
 };
 
-static const struct FontGlyph *find_glyph_{{ font.name }}(char c) {
-    switch (c) {
+static const struct FontGlyph *find_glyph_{{ font.name }}(uint32_t codepoint) {
+    switch (codepoint) {
 {%- for g in font.glyphs %}
-        case '{{ g.char }}': return &glyphs_{{ font.name }}[{{ loop.index0 }}];
+        case 0x{{ "%04X"|format(g.codepoint) }}: return &glyphs_{{ font.name }}[{{ loop.index0 }}]; /* {{ g.display }} */
 {%- endfor %}
         default: return NULL;
     }

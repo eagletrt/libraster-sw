@@ -11,6 +11,10 @@
  *     Every glyph shares the same single-pixel, fully opaque SDF blob, so
  *     calls to font_api_draw at native size produce one rectangle per glyph
  *     and the render path can be exercised through FFF.
+ *
+ *     Glyph lookup is keyed by Unicode codepoint. The fixture maps a handful
+ *     of ASCII glyphs plus the degree sign (U+00B0) so tests can exercise
+ *     multi-byte UTF-8 decoding without pulling in a real font.
  */
 
 #ifndef TEST_FONT_H
@@ -21,36 +25,37 @@
 #include <stddef.h>
 
 /*!
- * \brief One fully opaque pixel encoded as an RLE triplet:
- *     - byte 0: alpha pair (0xF0, 0xF0)
- *     - byte 1: count for the first run (1 pixel)
- *     - byte 2: count for the second run (0 pixels, skipped)
+ * \brief One fully opaque pixel encoded as an RLE pair:
+ *     - byte 0: alpha (0xFF = opaque)
+ *     - byte 1: count (1 pixel)
  */
 static const uint8_t test_sdf_data[] = {
-    0xFF, 1, 0xFF, 0,
+    0xFF, 1,
 };
 
 static const struct FontGlyph test_glyphs[] = {
-    { ' ', 0, 3, 4, 20 },
-    { 'A', 0, 3, 10, 20 },
-    { 'B', 0, 3, 12, 20 },
-    { 'C', 0, 3, 14, 20 },
-    { 'T', 0, 3, 8, 20 },
-    { 'e', 0, 3, 9, 20 },
-    { 's', 0, 3, 7, 20 },
-    { 't', 0, 3, 6, 20 },
+    { 0x0020U, 0, 2, 4, 20 },  /* ' '                      */
+    { 0x0041U, 0, 2, 10, 20 }, /* 'A'                      */
+    { 0x0042U, 0, 2, 12, 20 }, /* 'B'                      */
+    { 0x0043U, 0, 2, 14, 20 }, /* 'C'                      */
+    { 0x0054U, 0, 2, 8, 20 },  /* 'T'                      */
+    { 0x0065U, 0, 2, 9, 20 },  /* 'e'                      */
+    { 0x0073U, 0, 2, 7, 20 },  /* 's'                      */
+    { 0x0074U, 0, 2, 6, 20 },  /* 't'                      */
+    { 0x00B0U, 0, 2, 5, 20 },  /* '°' (U+00B0, 2-byte UTF-8) */
 };
 
-static const struct FontGlyph *test_find_glyph(char c) {
-    switch (c) {
-        case ' ': return &test_glyphs[0];
-        case 'A': return &test_glyphs[1];
-        case 'B': return &test_glyphs[2];
-        case 'C': return &test_glyphs[3];
-        case 'T': return &test_glyphs[4];
-        case 'e': return &test_glyphs[5];
-        case 's': return &test_glyphs[6];
-        case 't': return &test_glyphs[7];
+static const struct FontGlyph *test_find_glyph(uint32_t codepoint) {
+    switch (codepoint) {
+        case 0x0020U: return &test_glyphs[0];
+        case 0x0041U: return &test_glyphs[1];
+        case 0x0042U: return &test_glyphs[2];
+        case 0x0043U: return &test_glyphs[3];
+        case 0x0054U: return &test_glyphs[4];
+        case 0x0065U: return &test_glyphs[5];
+        case 0x0073U: return &test_glyphs[6];
+        case 0x0074U: return &test_glyphs[7];
+        case 0x00B0U: return &test_glyphs[8];
         default: return NULL;
     }
 }
