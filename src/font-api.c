@@ -89,6 +89,7 @@ EAGLETRT_STATIC uint8_t prv_utf8_decode(const char *text, uint32_t *codepoint) {
 
     uint8_t expected_byte_count;
     uint32_t accumulator;
+    // NOLINTBEGIN(bugprone-branch-clone)
     if ((lead & font_utf8_2_byte_mask) == font_utf8_2_byte_mask_result) {
         expected_byte_count = 2U;
         accumulator = lead & (0xFFU ^ font_utf8_2_byte_mask);
@@ -102,6 +103,7 @@ EAGLETRT_STATIC uint8_t prv_utf8_decode(const char *text, uint32_t *codepoint) {
         *codepoint = 0U;
         return 1U;
     }
+    // NOLINTEND(bugprone-branch-clone)
 
     for (uint8_t i = 1U; i < expected_byte_count; ++i) {
         const uint8_t continuation = (uint8_t)text[i];
@@ -219,9 +221,9 @@ EAGLETRT_STATIC enum RasterReturnCode prv_render_glyph(const struct FontGlyph *g
             continue;
         }
 
-        enum RasterReturnCode rc = prv_emit_run(alpha, count, glyph_width, multiplier_q16, origin_x, origin_y, base_argb, &current_x, &current_y, draw);
-        if (rc != RASTER_RC_OK) {
-            return rc;
+        enum RasterReturnCode return_code = prv_emit_run(alpha, count, glyph_width, multiplier_q16, origin_x, origin_y, base_argb, &current_x, &current_y, draw);
+        if (return_code != RASTER_RC_OK) {
+            return return_code;
         }
     }
 
@@ -243,9 +245,9 @@ uint16_t font_api_length(const char *text, uint16_t pixel_size, const struct Fon
     const uint32_t mul_q16 = ((uint32_t)pixel_size << 16) / font->base_size;
 
     uint32_t total = 0u;
-    for (const char *p = text; *p != '\0';) {
+    for (const char *text_cursor = text; *text_cursor != '\0';) {
         uint32_t codepoint = 0U;
-        p += prv_utf8_decode(p, &codepoint);
+        text_cursor += prv_utf8_decode(text_cursor, &codepoint);
         if (codepoint == 0U) {
             continue;
         }
@@ -280,9 +282,9 @@ enum RasterReturnCode font_api_draw(uint16_t x, uint16_t y, enum FontAlignment a
 
     const uint32_t multiplier_q16 = ((uint32_t)pixel_size << 16) / font->base_size;
 
-    for (const char *p = text; *p != '\0';) {
+    for (const char *text_cursor = text; *text_cursor != '\0';) {
         uint32_t codepoint = 0U;
-        p += prv_utf8_decode(p, &codepoint);
+        text_cursor += prv_utf8_decode(text_cursor, &codepoint);
         if (codepoint == 0U) {
             continue;
         }
@@ -291,9 +293,9 @@ enum RasterReturnCode font_api_draw(uint16_t x, uint16_t y, enum FontAlignment a
             continue;
         }
 
-        enum RasterReturnCode rc = prv_render_glyph(glyph, font, x, y, multiplier_q16, color, draw);
-        if (rc != RASTER_RC_OK) {
-            return rc;
+        enum RasterReturnCode return_code = prv_render_glyph(glyph, font, x, y, multiplier_q16, color, draw);
+        if (return_code != RASTER_RC_OK) {
+            return return_code;
         }
 
         const uint16_t advance = (uint16_t)prv_q16_multiply(glyph->width, multiplier_q16);
