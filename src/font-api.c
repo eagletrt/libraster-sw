@@ -39,20 +39,16 @@
  */
 #define FONT_Q16_HALF (0x8000U)
 
-#define FONT_UTF8_1_BYTE_MASK (0x80U)                  /*!< Mask to identify 1-byte (ASCII) UTF-8 sequences. */
-#define FONT_UTF8_2_BYTE_MASK (0xE0U)                  /*!< Mask to identify 2-byte UTF-8 sequences. */
-#define FONT_UTF8_3_BYTE_MASK (0xF0U)                  /*!< Mask to identify 3-byte UTF-8 sequences. */
-#define FONT_UTF8_4_BYTE_MASK (0xF8U)                  /*!< Mask to identify 4-byte UTF-8 sequences. */
-#define FONT_UTF8_1_BYTE_MASK_RESULT (0x00U)           /*!< Expected result after masking the lead byte of a 1-byte UTF-8 sequence. */
-#define FONT_UTF8_2_BYTE_MASK_RESULT (0xC0U)           /*!< Expected result after masking the lead byte of a 2-byte UTF-8 sequence. */
-#define FONT_UTF8_3_BYTE_MASK_RESULT (0xE0U)           /*!< Expected result after masking the lead byte of a 3-byte UTF-8 sequence. */
-#define FONT_UTF8_4_BYTE_MASK_RESULT (0xF0U)           /*!< Expected result after masking the lead byte of a 4-byte UTF-8 sequence. */
-#define FONT_UTF8_CONTINUATION_MASK (0xC0U)            /*!< Mask to identify UTF-8 continuation bytes. */
-#define FONT_UTF8_CONTINUATION_MASK_RESULT (0x80U)     /*!< Expected result after masking a UTF-8 continuation byte. */
-#define FONT_UTF8_CONTINUATION_EXTRACTION_MASK (0x3FU) /*!< Mask to extract the payload bits from a UTF-8 continuation byte. */
-#define FONT_UTF8_2_BYTE_EXTRACTION_MASK (0x1FU)       /*!< Mask to extract the payload bits from the lead byte of a 2-byte UTF-8 sequence. */
-#define FONT_UTF8_3_BYTE_EXTRACTION_MASK (0x0FU)       /*!< Mask to extract the payload bits from the lead byte of a 3-byte UTF-8 sequence. */
-#define FONT_UTF8_4_BYTE_EXTRACTION_MASK (0x07U)       /*!< Mask to extract the payload bits from the lead byte of a 4-byte UTF-8 sequence. */
+constexpr uint8_t font_utf8_1_byte_mask = 0x80U;              /*!< Mask to identify 1-byte (ASCII) UTF-8 sequences. */
+constexpr uint8_t font_utf8_2_byte_mask = 0xE0U;              /*!< Mask to identify 2-byte UTF-8 sequences. */
+constexpr uint8_t font_utf8_3_byte_mask = 0xF0U;              /*!< Mask to identify 3-byte UTF-8 sequences. */
+constexpr uint8_t font_utf8_4_byte_mask = 0xF8U;              /*!< Mask to identify 4-byte UTF-8 sequences. */
+constexpr uint8_t font_utf8_1_byte_mask_result = 0x00U;       /*!< Expected result after masking a 1-byte UTF-8 sequence. */
+constexpr uint8_t font_utf8_2_byte_mask_result = 0xC0U;       /*!< Expected result after masking a 2-byte UTF-8 sequence. */
+constexpr uint8_t font_utf8_3_byte_mask_result = 0xE0U;       /*!< Expected result after masking a 3-byte UTF-8 sequence. */
+constexpr uint8_t font_utf8_4_byte_mask_result = 0xF0U;       /*!< Expected result after masking a 4-byte UTF-8 sequence. */
+constexpr uint8_t font_utf8_continuation_mask = 0xC0U;        /*!< Mask to identify UTF-8 continuation bytes. */
+constexpr uint8_t font_utf8_continuation_mask_result = 0x80U; /*!< Expected result after masking a UTF-8 continuation byte. */
 
 /*!
  * \brief Multiply an unsigned value by a Q16 multiplier with rounding.
@@ -86,22 +82,22 @@ EAGLETRT_STATIC uint8_t prv_utf8_decode(const char *text, uint32_t *codepoint) {
     const uint8_t lead = (uint8_t)text[0];
 
     // if it's standard ASCII
-    if ((lead & FONT_UTF8_1_BYTE_MASK) == FONT_UTF8_1_BYTE_MASK_RESULT) {
+    if ((lead & font_utf8_1_byte_mask) == font_utf8_1_byte_mask_result) {
         *codepoint = lead;
         return 1U;
     }
 
     uint8_t expected_byte_count;
     uint32_t accumulator;
-    if ((lead & FONT_UTF8_2_BYTE_MASK) == FONT_UTF8_2_BYTE_MASK_RESULT) {
+    if ((lead & font_utf8_2_byte_mask) == font_utf8_2_byte_mask_result) {
         expected_byte_count = 2U;
-        accumulator = lead & FONT_UTF8_2_BYTE_EXTRACTION_MASK;
-    } else if ((lead & FONT_UTF8_3_BYTE_MASK) == FONT_UTF8_3_BYTE_MASK_RESULT) {
+        accumulator = lead & (0xFFU ^ font_utf8_2_byte_mask);
+    } else if ((lead & font_utf8_3_byte_mask) == font_utf8_3_byte_mask_result) {
         expected_byte_count = 3U;
-        accumulator = lead & FONT_UTF8_3_BYTE_EXTRACTION_MASK;
-    } else if ((lead & FONT_UTF8_4_BYTE_MASK) == FONT_UTF8_4_BYTE_MASK_RESULT) {
+        accumulator = lead & (0xFFU ^ font_utf8_3_byte_mask);
+    } else if ((lead & font_utf8_4_byte_mask) == font_utf8_4_byte_mask_result) {
         expected_byte_count = 4U;
-        accumulator = lead & FONT_UTF8_4_BYTE_EXTRACTION_MASK;
+        accumulator = lead & (0xFFU ^ font_utf8_4_byte_mask);
     } else {
         *codepoint = 0U;
         return 1U;
@@ -109,11 +105,11 @@ EAGLETRT_STATIC uint8_t prv_utf8_decode(const char *text, uint32_t *codepoint) {
 
     for (uint8_t i = 1U; i < expected_byte_count; ++i) {
         const uint8_t continuation = (uint8_t)text[i];
-        if ((continuation & FONT_UTF8_CONTINUATION_MASK) != FONT_UTF8_CONTINUATION_MASK_RESULT) {
+        if ((continuation & font_utf8_continuation_mask) != font_utf8_continuation_mask_result) {
             *codepoint = 0U;
             return 1U;
         }
-        accumulator = (accumulator << 6) | (continuation & FONT_UTF8_CONTINUATION_EXTRACTION_MASK);
+        accumulator = (accumulator << 6) | (continuation & (0xFFU ^ font_utf8_continuation_mask));
     }
     *codepoint = accumulator;
     return expected_byte_count;
