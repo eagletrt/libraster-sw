@@ -24,6 +24,20 @@ enum RasterReturnCode raster_api_init(struct RasterHandler *handler, struct Box 
     handler->box_count = box_count;
     handler->draw = draw;
     handler->clear = clear;
+    handler->draw_mask = NULL;
+    handler->mask = (struct RasterMask){ .buffer = NULL, .size = 0U };
+    return RASTER_RC_OK;
+}
+
+enum RasterReturnCode raster_api_set_mask(struct RasterHandler *handler, raster_draw_mask_callback draw_mask, uint8_t *buffer, uint32_t size) {
+    if (handler == NULL) {
+        return RASTER_RC_NULL_POINTER;
+    }
+    if (draw_mask != NULL && (buffer == NULL || size == 0U)) {
+        return RASTER_RC_NULL_POINTER;
+    }
+    handler->draw_mask = draw_mask;
+    handler->mask = (draw_mask != NULL) ? (struct RasterMask){ .buffer = buffer, .size = size } : (struct RasterMask){ .buffer = NULL, .size = 0U };
     return RASTER_RC_OK;
 }
 
@@ -53,7 +67,10 @@ enum RasterReturnCode raster_api_render(struct RasterHandler *handler) {
         if (!full_redraw && !box->updated) {
             continue;
         }
-        if (box_api_draw(box, handler->draw) != RASTER_RC_OK) {
+        const enum RasterReturnCode return_code = (handler->draw_mask != NULL)
+                                                      ? box_api_draw_masked(box, handler->draw, &handler->mask, handler->draw_mask)
+                                                      : box_api_draw(box, handler->draw);
+        if (return_code != RASTER_RC_OK) {
             return RASTER_RC_ERROR;
         }
         if (!full_redraw) {

@@ -75,6 +75,25 @@ enum RasterReturnCode box_api_draw(const struct Box *box, raster_draw_rectangle_
     return RASTER_RC_OK;
 }
 
+enum RasterReturnCode box_api_draw_masked(const struct Box *box, raster_draw_rectangle_callback draw, const struct RasterMask *mask, raster_draw_mask_callback draw_mask) {
+    if (box == NULL || draw == NULL || mask == NULL || draw_mask == NULL) {
+        return RASTER_RC_NULL_POINTER;
+    }
+
+    if (draw(box->rect.x, box->rect.y, box->rect.width, box->rect.height, box->color) != RASTER_RC_OK) {
+        return RASTER_RC_ERROR;
+    }
+    if (box->label != NULL) {
+        const uint16_t label_x = (uint16_t)((int32_t)box->rect.x + box->label->offset_x);
+        const uint16_t label_y = (uint16_t)((int32_t)box->rect.y + box->label->offset_y);
+        if (label_api_draw_masked(box->label, label_x, label_y, mask, draw_mask) != RASTER_RC_OK) {
+            return RASTER_RC_ERROR;
+        }
+    }
+
+    return RASTER_RC_OK;
+}
+
 struct Box *box_api_find(struct Box *boxes, uint16_t size, uint16_t box_id) {
     if (boxes == NULL) {
         return NULL;

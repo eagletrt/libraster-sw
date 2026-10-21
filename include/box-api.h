@@ -103,6 +103,24 @@ enum RasterReturnCode box_api_clear_label(struct Box *box);
 enum RasterReturnCode box_api_draw(const struct Box *box, raster_draw_rectangle_callback draw);
 
 /*!
+ * \brief Render a box with its label blended through a coverage mask.
+ *
+ * \details Same as box_api_draw, but the label goes through
+ *     label_api_draw_masked: one mask blit instead of one rectangle per
+ *     anti-aliased run. The background is still a single rectangle fill.
+ *
+ * \param[in] box       Box to render.
+ * \param[in] draw      Rectangle-fill callback (background).
+ * \param[in] mask      Scratch buffer for the label coverage.
+ * \param[in] draw_mask Mask-blend callback (label).
+ *
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_NULL_POINTER if \p box, \p draw, \p mask or \p draw_mask is NULL.
+ * \retval RASTER_RC_ERROR if a callback reported an error or the mask is too small.
+ */
+enum RasterReturnCode box_api_draw_masked(const struct Box *box, raster_draw_rectangle_callback draw, const struct RasterMask *mask, raster_draw_mask_callback draw_mask);
+
+/*!
  * \brief Find a box by id within a flat array.
  *
  * \details Linear search; convenient for small interfaces (the typical case
