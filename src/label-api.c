@@ -41,3 +41,13 @@ enum RasterReturnCode label_api_draw(const struct Label *label, uint16_t x, uint
     }
     return font_api_draw(x, y, label->alignment, label->font, label->text, label->color, label->size, draw);
 }
+
+enum RasterReturnCode label_api_draw_masked(const struct Label *label, uint16_t x, uint16_t y, const struct RasterMask *mask, raster_draw_mask_callback draw_mask) {
+    if (label == NULL || mask == NULL || draw_mask == NULL) {
+        return RASTER_RC_NULL_POINTER;
+    }
+    if (label->text == NULL || label->font == NULL) {
+        return RASTER_RC_OK;
+    }
+    return font_api_draw_masked(x, y, label->alignment, label->font, label->text, label->color, label->size, mask, draw_mask);
+}

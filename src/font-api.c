@@ -20,8 +20,10 @@
 
 #include "font-api.h"
 #include "eagletrt.h"
+#include "eagletrt-api.h"
 #include <stdbool.h>
 #include <stddef.h>
+#include <string.h>
 
 /*!
  * \brief Coverage values strictly below this threshold are treated as fully
@@ -230,6 +232,119 @@ EAGLETRT_STATIC enum RasterReturnCode prv_render_glyph(const struct FontGlyph *g
     return RASTER_RC_OK;
 }
 
+/*!
+ * \brief Window of the coverage mask being rendered by font_api_draw_masked.
+ *
+ * \details The glyph rasterizer only knows rectangle callbacks, which carry no
+ *     user context, so the mask it writes into is kept here. Rendering is
+ *     therefore not reentrant (one string at a time), like the rest of the
+ *     single-threaded render path.
+ */
+struct FontMaskTarget {
+    uint8_t *buffer; /*!< Mask rows, stride \c width */
+    uint16_t x;      /*!< Screen X of the first mask column */
+    uint16_t y;      /*!< Screen Y of the first mask row */
+    uint16_t width;  /*!< Mask width, in pixels */
+    uint16_t height; /*!< Rows held by the mask (one band) */
+    bool touched;    /*!< At least one pixel was written */
+};
+
+EAGLETRT_STATIC struct FontMaskTarget font_mask_target;
+
+/*!
+ * \brief Rectangle callback that writes coverage into font_mask_target.
+ *
+ * \details Clips the rectangle to the mask window and keeps the highest
+ *     coverage where scaled runs overlap by a pixel (the rectangle path would
+ *     blend them twice). Coordinates are compared modulo 2^16, like the
+ *     rectangle path, so text anchored left of the screen still lines up.
+ *
+ * \param[in] x      Rectangle X, in screen pixels.
+ * \param[in] y      Rectangle Y, in screen pixels.
+ * \param[in] width  Rectangle width.
+ * \param[in] height Rectangle height.
+ * \param[in] color  Only the alpha (coverage) is used.
+ *
+ * \retval RASTER_RC_OK always.
+ */
+EAGLETRT_STATIC enum RasterReturnCode prv_mask_draw(uint16_t x, uint16_t y, uint16_t width, uint16_t height, struct Color color) {
+    const int32_t left = (int16_t)(uint16_t)(x - font_mask_target.x);
+    const int32_t top = (int16_t)(uint16_t)(y - font_mask_target.y);
+    const int32_t col_start = EAGLETRT_API_MAX(left, 0);
+    const int32_t col_end = EAGLETRT_API_MIN(left + (int32_t)width, (int32_t)font_mask_target.width);
+    const int32_t row_start = EAGLETRT_API_MAX(top, 0);
+    const int32_t row_end = EAGLETRT_API_MIN(top + (int32_t)height, (int32_t)font_mask_target.height);
+
+    for (int32_t row = row_start; row < row_end; ++row) {
+        uint8_t *line = font_mask_target.buffer + ((uint32_t)row * font_mask_target.width);
+        for (int32_t col = col_start; col < col_end; ++col) {
+            if (color.a > line[col]) {
+                line[col] = color.a;
+            }
+        }
+    }
+    if (row_start < row_end && col_start < col_end) {
+        font_mask_target.touched = true;
+    }
+    return RASTER_RC_OK;
+}
+
+/*!
+ * \brief Left edge of a string once aligned around its anchor.
+ *
+ * \param[in] x         Anchor X.
+ * \param[in] alignment Alignment around the anchor.
+ * \param[in] length    Rendered width of the string.
+ *
+ * \return The X of the first glyph.
+ */
+EAGLETRT_STATIC uint16_t prv_aligned_x(uint16_t x, enum FontAlignment alignment, uint16_t length) {
+    if (alignment == FONT_ALIGN_LEFT) {
+        return x;
+    }
+    x -= length;
+    if (alignment == FONT_ALIGN_CENTER) {
+        x += length / 2U;
+    }
+    return x;
+}
+
+/*!
+ * \brief Rasterize every glyph of a string from its left edge.
+ *
+ * \param[in] x              X of the first glyph.
+ * \param[in] y              Top Y of the text.
+ * \param[in] font           Font to render with.
+ * \param[in] text           NUL-terminated UTF-8 string.
+ * \param[in] color          Base color, alpha replaced by coverage.
+ * \param[in] multiplier_q16 Q16 scaling factor.
+ * \param[in] draw           Rectangle callback receiving every run.
+ *
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_ERROR if the draw callback reported an error.
+ */
+EAGLETRT_STATIC enum RasterReturnCode prv_render_text(uint16_t x, uint16_t y, const struct Font *font, const char *text, struct Color color, uint32_t multiplier_q16, raster_draw_rectangle_callback draw) {
+    for (const char *text_cursor = text; *text_cursor != '\0';) {
+        uint32_t codepoint = 0U;
+        text_cursor += prv_utf8_decode(text_cursor, &codepoint);
+        if (codepoint == 0U) {
+            continue;
+        }
+        const struct FontGlyph *glyph = font_api_find_glyph(font, codepoint);
+        if (glyph == NULL) {
+            continue;
+        }
+
+        enum RasterReturnCode return_code = prv_render_glyph(glyph, font, x, y, multiplier_q16, color, draw);
+        if (return_code != RASTER_RC_OK) {
+            return return_code;
+        }
+
+        x += (uint16_t)prv_q16_multiply(glyph->width, multiplier_q16);
+    }
+    return RASTER_RC_OK;
+}
+
 const struct FontGlyph *font_api_find_glyph(const struct Font *font, uint32_t codepoint) {
     if (font == NULL || font->find_glyph == NULL) {
         return NULL;
@@ -274,14 +389,24 @@ enum RasterReturnCode font_api_draw(uint16_t x, uint16_t y, enum FontAlignment a
         if (len == 0U) {
             return RASTER_RC_OK;
         }
-        x -= len;
-        if (alignment == FONT_ALIGN_CENTER) {
-            x += len / 2U;
-        }
+        x = prv_aligned_x(x, alignment, len);
     }
 
     const uint32_t multiplier_q16 = ((uint32_t)pixel_size << 16) / font->base_size;
+    return prv_render_text(x, y, font, text, color, multiplier_q16, draw);
+}
 
+enum RasterReturnCode font_api_bounds(uint16_t x, uint16_t y, enum FontAlignment alignment, const struct Font *font, const char *text, uint16_t pixel_size, struct FontBounds *bounds) {
+    if (font == NULL || text == NULL || bounds == NULL) {
+        return RASTER_RC_NULL_POINTER;
+    }
+    *bounds = (struct FontBounds){ .x = x, .y = y, .width = 0U, .height = 0U };
+    if (font->base_size == 0U) {
+        return RASTER_RC_OK;
+    }
+
+    const uint32_t multiplier_q16 = ((uint32_t)pixel_size << 16) / font->base_size;
+    uint32_t height = 0U;
     for (const char *text_cursor = text; *text_cursor != '\0';) {
         uint32_t codepoint = 0U;
         text_cursor += prv_utf8_decode(text_cursor, &codepoint);
@@ -292,14 +417,55 @@ enum RasterReturnCode font_api_draw(uint16_t x, uint16_t y, enum FontAlignment a
         if (glyph == NULL) {
             continue;
         }
+        height = EAGLETRT_API_MAX(height, prv_q16_multiply(glyph->height, multiplier_q16));
+    }
 
-        enum RasterReturnCode return_code = prv_render_glyph(glyph, font, x, y, multiplier_q16, color, draw);
-        if (return_code != RASTER_RC_OK) {
-            return return_code;
+    bounds->width = font_api_length(text, pixel_size, font);
+    bounds->height = height > 0xFFFFU ? 0xFFFFU : (uint16_t)height;
+    bounds->x = prv_aligned_x(x, alignment, bounds->width);
+    return RASTER_RC_OK;
+}
+
+enum RasterReturnCode font_api_draw_masked(uint16_t x, uint16_t y, enum FontAlignment alignment, const struct Font *font, const char *text, struct Color color, uint16_t pixel_size, const struct RasterMask *mask, raster_draw_mask_callback draw_mask) {
+    if (font == NULL || text == NULL || mask == NULL || mask->buffer == NULL || draw_mask == NULL) {
+        return RASTER_RC_NULL_POINTER;
+    }
+
+    struct FontBounds bounds;
+    if (font_api_bounds(x, y, alignment, font, text, pixel_size, &bounds) != RASTER_RC_OK) {
+        return RASTER_RC_ERROR;
+    }
+    if (bounds.width == 0U || bounds.height == 0U) {
+        return RASTER_RC_OK;
+    }
+
+    const uint32_t rows_per_band = mask->size / bounds.width;
+    if (rows_per_band == 0U) {
+        return RASTER_RC_ERROR; // the mask cannot hold even one row of this text
+    }
+
+    const uint32_t multiplier_q16 = ((uint32_t)pixel_size << 16) / font->base_size;
+    for (uint16_t band_y = 0U; band_y < bounds.height;) {
+        const uint16_t band_height = (uint16_t)EAGLETRT_API_MIN(rows_per_band, (uint32_t)(bounds.height - band_y));
+        memset(mask->buffer, 0, (size_t)bounds.width * band_height);
+        font_mask_target = (struct FontMaskTarget){
+            .buffer = mask->buffer,
+            .x = bounds.x,
+            .y = (uint16_t)(bounds.y + band_y),
+            .width = bounds.width,
+            .height = band_height,
+            .touched = false,
+        };
+
+        // Every glyph is decoded once per band; runs outside the band are clipped away.
+        if (prv_render_text(bounds.x, bounds.y, font, text, color, multiplier_q16, prv_mask_draw) != RASTER_RC_OK) {
+            return RASTER_RC_ERROR;
         }
-
-        const uint16_t advance = (uint16_t)prv_q16_multiply(glyph->width, multiplier_q16);
-        x += advance;
+        if (font_mask_target.touched &&
+            draw_mask(bounds.x, (uint16_t)(bounds.y + band_y), bounds.width, band_height, mask->buffer, color) != RASTER_RC_OK) {
+            return RASTER_RC_ERROR;
+        }
+        band_y = (uint16_t)(band_y + band_height);
     }
 
     return RASTER_RC_OK;

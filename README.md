@@ -28,6 +28,34 @@ to `raster_api_init`:
 There is no `raster-config.h`, no compile-time flag, and no need to
 recompile the library to switch modes.
 
+## Mask rendering
+
+Text is anti-aliased: every glyph row is a sequence of coverage runs, and by
+default each run reaches the rectangle callback as one small rectangle (its
+alpha is the coverage). With a hardware accelerator that has a fixed cost per
+call (e.g. one DMA2D transfer each) that is tens of thousands of calls for a
+full screen of text.
+
+`raster_api_set_mask` hands labels over as a whole instead: the library writes
+the coverage of a label into a user-provided scratch buffer (A8, one byte per
+pixel) and calls a `raster_draw_mask_callback` once per label, which blends
+the label color through the mask (on STM32: a single DMA2D transfer with an A8
+foreground). Box backgrounds keep using the rectangle callback.
+
+```c
+static uint8_t mask[64 * 1024]; /* must be readable by whatever blends it */
+
+raster_api_init(&raster, boxes, box_count, draw_rectangle, NULL);
+raster_api_set_mask(&raster, draw_mask, mask, sizeof(mask));
+```
+
+The scratch must hold at least one row of the widest label; taller labels are
+rendered in bands of as many rows as fit. The output covers exactly the pixels
+of the rectangle path; where scaled runs overlap by a pixel the mask keeps the
+higher coverage instead of blending twice. Passing a NULL callback goes back to
+rectangles only. `font_api_draw_masked`, `label_api_draw_masked` and
+`box_api_draw_masked` are available for direct use.
+
 ## Fonts
 
 The bundled generator turns one or more TTFs into a pair of `raster-fonts.c`/`raster-fonts.h` 
