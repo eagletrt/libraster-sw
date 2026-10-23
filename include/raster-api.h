@@ -39,6 +39,27 @@
 enum RasterReturnCode raster_api_init(struct RasterHandler *handler, struct Box *interface, uint16_t box_count, raster_draw_rectangle_callback draw, raster_clear_screen_callback clear);
 
 /*!
+ * \brief Enable (or disable) rendering labels through a coverage mask.
+ *
+ * \details With a mask callback set, raster_api_render draws every label as
+ *     one mask blend per band (box_api_draw_masked) instead of one rectangle
+ *     per anti-aliased run, which is much cheaper when each callback has a
+ *     fixed cost (e.g. one DMA2D transfer). Box backgrounds still use the
+ *     rectangle callback. raster_api_init leaves it disabled.
+ *
+ * \param[in,out] handler   Handler to update.
+ * \param[in]     draw_mask Mask-blend callback, or NULL to go back to rectangles only.
+ * \param[in]     buffer    Scratch for the coverage (ignored when \p draw_mask is NULL).
+ *     Must hold at least one row of the widest label.
+ * \param[in]     size      Size of \p buffer, in bytes.
+ *
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_NULL_POINTER if \p handler is NULL, or if \p draw_mask is set
+ *     but \p buffer is NULL or \p size is 0.
+ */
+enum RasterReturnCode raster_api_set_mask(struct RasterHandler *handler, raster_draw_mask_callback draw_mask, uint8_t *buffer, uint32_t size);
+
+/*!
  * \brief Replace the interface mounted on a handler.
  *
  * \details Useful for swapping screens (main view, popup, menu, etc.).

@@ -69,4 +69,46 @@ enum RasterReturnCode font_api_draw(uint16_t x, uint16_t y, enum FontAlignment a
  */
 uint16_t font_api_length(const char *text, uint16_t pixel_size, const struct Font *font);
 
+/*!
+ * \brief Compute the screen rectangle a string covers when rendered.
+ *
+ * \param[in]  x          Anchor X position. Interpretation depends on \p alignment.
+ * \param[in]  y          Top Y position of the rendered text.
+ * \param[in]  alignment  Horizontal alignment of the text relative to (x, y).
+ * \param[in]  font       Font to render with.
+ * \param[in]  text       NUL-terminated UTF-8 string to measure.
+ * \param[in]  pixel_size Target pixel height of the rendered text.
+ * \param[out] bounds     Left edge (after alignment), top, width and height. Width and height are 0
+ *     for an empty string or a font without glyphs for it.
+ *
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_NULL_POINTER if \p font, \p text, or \p bounds is NULL.
+ */
+enum RasterReturnCode font_api_bounds(uint16_t x, uint16_t y, enum FontAlignment alignment, const struct Font *font, const char *text, uint16_t pixel_size, struct FontBounds *bounds);
+
+/*!
+ * \brief Render a string through a coverage mask.
+ *
+ * \details Same output as font_api_draw, but the glyph runs are written into
+ *     \p mask (the highest coverage wins where runs overlap) and handed to
+ *     \p draw_mask once per band instead of one rectangle per run. A band is
+ *     as many rows of the text's bounds as fit in the mask; with a mask of at
+ *     least width * height bytes the whole string is one call. Not reentrant.
+ *
+ * \param[in] x          Anchor X position. Interpretation depends on \p alignment.
+ * \param[in] y          Top Y position of the rendered text.
+ * \param[in] alignment  Horizontal alignment of the text relative to (x, y).
+ * \param[in] font       Font to render with.
+ * \param[in] text       NUL-terminated UTF-8 string to render.
+ * \param[in] color      Text color; its alpha scales the coverage.
+ * \param[in] pixel_size Target pixel height of the rendered text.
+ * \param[in] mask       Scratch buffer, at least one row of the text wide.
+ * \param[in] draw_mask  Mask-blend callback.
+ *
+ * \retval RASTER_RC_OK if rendering succeeded (or the string was empty).
+ * \retval RASTER_RC_NULL_POINTER if a pointer argument (or \c mask->buffer) is NULL.
+ * \retval RASTER_RC_ERROR if the mask is narrower than the text or the callback reported an error.
+ */
+enum RasterReturnCode font_api_draw_masked(uint16_t x, uint16_t y, enum FontAlignment alignment, const struct Font *font, const char *text, struct Color color, uint16_t pixel_size, const struct RasterMask *mask, raster_draw_mask_callback draw_mask);
+
 #endif // FONT_API_H

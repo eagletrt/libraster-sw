@@ -48,6 +48,45 @@ enum RasterReturnCode {
 typedef enum RasterReturnCode (*raster_draw_rectangle_callback)(uint16_t x, uint16_t y, uint16_t width, uint16_t heigth, struct Color color);
 
 /*!
+ * \brief Callback used to blend a single color through a coverage mask.
+ *
+ * \details Optional (see raster_api_set_mask). Each byte of \p mask is the
+ *     coverage (0 = transparent, 255 = opaque) of the matching pixel of the
+ *     \p width x \p height destination rectangle, row after row with a
+ *     stride of \p width bytes. The final alpha of a pixel is
+ *     `mask * color.a / 255`.
+ *
+ *     It lets the library hand over a whole label at once instead of one
+ *     rectangle per anti-aliased run: on STM32 it maps to a single DMA2D
+ *     transfer with an A8 foreground and a constant foreground color, where
+ *     the rectangle path needs thousands of tiny transfers.
+ *
+ * \param[in] x      Top-left X position of the rectangle, in pixels.
+ * \param[in] y      Top-left Y position of the rectangle, in pixels.
+ * \param[in] width  Width of the rectangle (and stride of \p mask), in pixels.
+ * \param[in] height Height of the rectangle, in pixels.
+ * \param[in] mask   Coverage values, \p width * \p height bytes.
+ * \param[in] color  Color to blend; its alpha scales the coverage.
+ *
+ * \retval RASTER_RC_OK on success.
+ * \retval RASTER_RC_ERROR on hardware/driver failure.
+ */
+typedef enum RasterReturnCode (*raster_draw_mask_callback)(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint8_t *mask, struct Color color);
+
+/*!
+ * \brief Scratch buffer the library renders coverage masks into.
+ *
+ * \details Owned by the user (the library never allocates). It must hold at
+ *     least one row of the widest text; taller text is rendered in bands of
+ *     as many rows as fit. It must be reachable by whatever implements the
+ *     mask callback (e.g. not in a memory the DMA can't read).
+ */
+struct RasterMask {
+    uint8_t *buffer; /*!< Scratch memory */
+    uint32_t size;   /*!< Size of \c buffer, in bytes */
+};
+
+/*!
  * \brief Callback used to clear the entire framebuffer.
  *
  * \details Optional. When set on a RasterHandler, raster_api_render switches
@@ -71,10 +110,12 @@ typedef enum RasterReturnCode (*raster_clear_screen_callback)(void);
  */
 struct RasterHandler {
     struct Box *interface; /*!< Currently mounted interface */
-    uint16_t box_count;         /*!< Number of boxes in \c interface */
+    uint16_t box_count;    /*!< Number of boxes in \c interface */
 
-    raster_draw_rectangle_callback draw; /*!< Required: rectangle-fill callback */
-    raster_clear_screen_callback clear;  /*!< Optional: when set, full-redraw mode */
+    raster_draw_rectangle_callback draw;   /*!< Required: rectangle-fill callback */
+    raster_clear_screen_callback clear;    /*!< Optional: when set, full-redraw mode */
+    raster_draw_mask_callback draw_mask;   /*!< Optional: when set, labels are blended through \c mask */
+    struct RasterMask mask;                /*!< Scratch for \c draw_mask */
 };
 
 #endif // RASTER_H

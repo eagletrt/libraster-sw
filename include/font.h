@@ -66,4 +66,14 @@ struct Font {
     font_find_glyph_callback find_glyph; /*!< Per-font glyph lookup, generated as a switch-case */
 };
 
+/*!
+ * \brief Screen rectangle covered by a rendered string.
+ */
+struct FontBounds {
+    uint16_t x;      /*!< Left edge, after alignment */
+    uint16_t y;      /*!< Top edge */
+    uint16_t width;  /*!< Width in pixels (same as font_api_length) */
+    uint16_t height; /*!< Height in pixels (tallest scaled glyph) */
+};
+
 #endif // FONT_H

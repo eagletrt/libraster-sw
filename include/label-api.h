@@ -69,4 +69,19 @@ enum RasterReturnCode label_api_set_text(struct Label *label, const char *text);
  */
 enum RasterReturnCode label_api_draw(const struct Label *label, uint16_t x, uint16_t y, raster_draw_rectangle_callback draw);
 
+/*!
+ * \brief Render a label through a coverage mask (see font_api_draw_masked).
+ *
+ * \param[in] label     Label to render.
+ * \param[in] x         Anchor X position in absolute screen coordinates.
+ * \param[in] y         Top Y position in absolute screen coordinates.
+ * \param[in] mask      Scratch buffer for the coverage.
+ * \param[in] draw_mask Mask-blend callback.
+ *
+ * \retval RASTER_RC_OK on success (or when the label has no text or font).
+ * \retval RASTER_RC_NULL_POINTER if \p label, \p mask or \p draw_mask is NULL.
+ * \retval RASTER_RC_ERROR if the mask is too small or the callback reported an error.
+ */
+enum RasterReturnCode label_api_draw_masked(const struct Label *label, uint16_t x, uint16_t y, const struct RasterMask *mask, raster_draw_mask_callback draw_mask);
+
 #endif // LABEL_API_H
