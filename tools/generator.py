@@ -62,8 +62,11 @@ def smoothstep(edge0: float, edge1: float, x: np.ndarray) -> np.ndarray:
 
 
 def compute_sdf(bitmap: np.ndarray, edge0: float, edge1: float) -> np.ndarray:
-    inside = distance_transform_edt(bitmap)
-    outside = distance_transform_edt(1 - bitmap)
+    if not np.any(bitmap):
+        return np.zeros(bitmap.shape, dtype=np.uint8)
+    padded = np.pad(bitmap, 1, mode="constant", constant_values=False)
+    inside = distance_transform_edt(padded)[1:-1, 1:-1]
+    outside = distance_transform_edt(~padded)[1:-1, 1:-1]
     sdf = inside - outside
     normalized = np.clip((sdf + 3) / 6, 0, 1)
     return (smoothstep(edge0, edge1, normalized) * 255).astype(np.uint8)
