@@ -5,13 +5,13 @@
  *
  * \brief Unit tests for mask rendering (font/label/box/raster *_masked and raster_api_set_mask).
  *
- * \details The central property: rendering a string through a coverage mask
- *     must cover exactly the pixels, with exactly the coverage, that the
- *     rectangle path covers. Both paths are rendered into a coverage map
- *     (highest coverage wins, like the mask writer) and compared, with glyphs
- *     made of several runs, partial alphas, sub-threshold runs and runs that
- *     cross glyph rows, at native and fractional scale and with a mask small
- *     enough to force banding.
+ * \details At native size, rendering a string through a coverage mask must
+ *     cover exactly the pixels, with exactly the coverage, that the rectangle
+ *     path covers. At any other size the mask path box filters: every pixel
+ *     must hold the area-weighted average of the glyph pixels behind it,
+ *     checked against a floating-point reference, at fractional and upscaled
+ *     sizes and with a mask small enough to force banding. Glyphs have several
+ *     runs, partial alphas, sub-threshold runs and runs that cross glyph rows.
  */
 
 #include "box-api.h"
@@ -20,6 +20,7 @@
 #include "raster-api.h"
 #include "unity.h"
 
+#include <math.h>
 #include <stddef.h>
 #include <string.h>
 
@@ -61,6 +62,27 @@ static const struct Font mask_font = {
     .glyphs = mask_glyphs,
     .glyph_count = 3,
     .find_glyph = mask_find_glyph,
+};
+
+/* The same glyphs declared as a 10 px size, and a font baked at 5 and 10 px. */
+static const struct Font mask_font_10 = {
+    .base_size = 10,
+    .sdf_data = mask_sdf_data,
+    .glyphs = mask_glyphs,
+    .glyph_count = 3,
+    .find_glyph = mask_find_glyph,
+};
+
+static const struct Font *const baked_sizes[] = { &mask_font, &mask_font_10 };
+
+static const struct Font baked_font = {
+    .base_size = 10,
+    .sdf_data = mask_sdf_data,
+    .glyphs = mask_glyphs,
+    .glyph_count = 3,
+    .find_glyph = mask_find_glyph,
+    .sizes = baked_sizes,
+    .size_count = 2,
 };
 
 #define TEST_MAP_WIDTH (160U)
@@ -127,7 +149,62 @@ static void assert_paths_match(uint16_t x, uint16_t y, enum FontAlignment alignm
 }
 
 /*!
- * \defgroup font_api_draw_masked Equivalence with the rectangle path
+ * \brief Reference box filter in doubles: each glyph pixel adds its coverage times
+ *     the area it overlaps of every screen pixel, clipped to the text bounds.
+ */
+static double reference_map[TEST_MAP_HEIGHT][TEST_MAP_WIDTH];
+
+static void reference_box_filter(const struct Font *font, uint16_t x, uint16_t y, enum FontAlignment alignment, const char *text, uint16_t pixel_size) {
+    memset(reference_map, 0, sizeof(reference_map));
+    struct FontBounds bounds;
+    TEST_ASSERT_EQUAL(RASTER_RC_OK, font_api_bounds(x, y, alignment, font, text, pixel_size, &bounds));
+    const uint32_t multiplier_q16 = ((uint32_t)pixel_size << 16) / font->base_size;
+    const double scale = (double)multiplier_q16 / 65536.0;
+    double pen = bounds.x;
+    for (const char *c = text; *c != '\0'; ++c) {
+        const struct FontGlyph *glyph = font->find_glyph((uint32_t)(uint8_t)*c);
+        if (glyph == NULL) {
+            continue;
+        }
+        uint32_t pixel = 0U;
+        for (uint32_t i = 0U; i + 1U < glyph->size; i += 2U) {
+            const uint8_t alpha = font->sdf_data[glyph->offset + i];
+            for (uint32_t n = 0U; n < font->sdf_data[glyph->offset + i + 1U]; ++n, ++pixel) {
+                const double left = pen + ((pixel % glyph->width) * scale);
+                const double top = y + ((pixel / glyph->width) * scale);
+                for (int32_t row = (int32_t)floor(top); row < (int32_t)ceil(top + scale); ++row) {
+                    for (int32_t col = (int32_t)floor(left); col < (int32_t)ceil(left + scale); ++col) {
+                        if (col < (int32_t)bounds.x || col >= (int32_t)(bounds.x + bounds.width) || row < (int32_t)bounds.y || row >= (int32_t)(bounds.y + bounds.height)) {
+                            continue;
+                        }
+                        const double width = fmin(left + scale, col + 1.0) - fmax(left, (double)col);
+                        const double height = fmin(top + scale, row + 1.0) - fmax(top, (double)row);
+                        reference_map[row][col] += alpha * width * height;
+                    }
+                }
+            }
+        }
+        pen += (double)(((uint32_t)glyph->width * multiplier_q16 + 0x8000U) >> 16);
+    }
+}
+
+static void assert_box_filtered(const struct Font *font, uint16_t x, uint16_t y, enum FontAlignment alignment, const char *text, uint16_t pixel_size, uint32_t mask_size) {
+    const struct RasterMask mask = { .buffer = mask_scratch, .size = mask_size };
+    TEST_ASSERT_EQUAL(RASTER_RC_OK, font_api_draw_masked(x, y, alignment, font, text, text_color, pixel_size, &mask, mask_sink));
+    reference_box_filter(font, x, y, alignment, text, pixel_size);
+    uint32_t inked = 0U;
+    for (uint32_t row = 0U; row < TEST_MAP_HEIGHT; ++row) {
+        for (uint32_t col = 0U; col < TEST_MAP_WIDTH; ++col) {
+            const double expected = fmin(reference_map[row][col], 255.0);
+            inked += expected >= 1.0 ? 1U : 0U;
+            TEST_ASSERT_TRUE_MESSAGE(fabs(expected - (double)mask_map[row][col]) <= 2.0, "mask pixel must be the area-weighted coverage");
+        }
+    }
+    TEST_ASSERT_TRUE_MESSAGE(inked > 0U, "the fixture must actually draw something");
+}
+
+/*!
+ * \defgroup font_api_draw_masked Native size: same as rectangles; other sizes: box filter
  * \{
  */
 
@@ -136,23 +213,34 @@ void test_masked_matches_rectangles_native_size(void) {
     TEST_ASSERT_EQUAL_MESSAGE(1U, mask_calls, "a mask large enough renders the whole string in one call");
 }
 
-void test_masked_matches_rectangles_fractional_scale_centered(void) {
-    assert_paths_match(80U, 7U, FONT_ALIGN_CENTER, "CABBA", 13U, TEST_MASK_CAPACITY); /* x2.6 */
+void test_masked_box_filters_fractional_scale_centered(void) {
+    assert_box_filtered(&mask_font, 80U, 7U, FONT_ALIGN_CENTER, "CABBA", 13U, TEST_MASK_CAPACITY); /* x2.6 */
     TEST_ASSERT_EQUAL(1U, mask_calls);
 }
 
-void test_masked_matches_rectangles_right_aligned_upscaled(void) {
-    assert_paths_match(150U, 0U, FONT_ALIGN_RIGHT, "BAC", 22U, TEST_MASK_CAPACITY); /* x4.4 */
+void test_masked_box_filters_downscaled(void) {
+    assert_box_filtered(&mask_font, 3U, 2U, FONT_ALIGN_LEFT, "ABCAB", 3U, TEST_MASK_CAPACITY); /* x0.6: pixels mix several glyph pixels */
+}
+
+void test_masked_box_filters_right_aligned_upscaled(void) {
+    assert_box_filtered(&mask_font, 150U, 0U, FONT_ALIGN_RIGHT, "BAC", 22U, TEST_MASK_CAPACITY); /* x4.4 */
 }
 
 void test_masked_bands_when_mask_is_small(void) {
     struct FontBounds bounds;
     font_api_bounds(80U, 7U, FONT_ALIGN_CENTER, &mask_font, "CABBA", 13U, &bounds);
-    const uint32_t two_rows = (uint32_t)bounds.width * 2U;
+    const uint32_t two_rows = 2U * (uint32_t)bounds.width * 2U; /* scaled: two bytes per pixel while summing */
 
-    assert_paths_match(80U, 7U, FONT_ALIGN_CENTER, "CABBA", 13U, two_rows);
+    assert_box_filtered(&mask_font, 80U, 7U, FONT_ALIGN_CENTER, "CABBA", 13U, two_rows);
     TEST_ASSERT_TRUE_MESSAGE(mask_calls > 1U, "a two-row mask must split the text into bands");
     TEST_ASSERT_TRUE(mask_calls <= ((uint32_t)bounds.height + 1U) / 2U);
+}
+
+void test_masked_scaled_needs_two_bytes_per_pixel(void) {
+    struct FontBounds bounds;
+    font_api_bounds(0U, 0U, FONT_ALIGN_LEFT, &mask_font, "AB", 13U, &bounds);
+    const struct RasterMask one_row_of_bytes = { .buffer = mask_scratch, .size = bounds.width };
+    TEST_ASSERT_EQUAL_MESSAGE(RASTER_RC_ERROR, font_api_draw_masked(0U, 0U, FONT_ALIGN_LEFT, &mask_font, "AB", text_color, 13U, &one_row_of_bytes, mask_sink), "one byte per pixel is not enough to sum a scaled row");
 }
 
 void test_masked_blends_with_the_text_color(void) {
@@ -189,6 +277,34 @@ void test_masked_null_arguments(void) {
     TEST_ASSERT_EQUAL(RASTER_RC_NULL_POINTER, font_api_draw_masked(0U, 0U, FONT_ALIGN_LEFT, &mask_font, "A", text_color, 5U, NULL, mask_sink));
     TEST_ASSERT_EQUAL(RASTER_RC_NULL_POINTER, font_api_draw_masked(0U, 0U, FONT_ALIGN_LEFT, &mask_font, "A", text_color, 5U, &no_buffer, mask_sink));
     TEST_ASSERT_EQUAL(RASTER_RC_NULL_POINTER, font_api_draw_masked(0U, 0U, FONT_ALIGN_LEFT, &mask_font, "A", text_color, 5U, &mask, NULL));
+}
+
+void test_baked_size_picks_the_smallest_one_at_least_as_tall(void) {
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(font_api_length("ABC", 4U, &mask_font), font_api_length("ABC", 4U, &baked_font), "4 px: from the 5 px size");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(font_api_length("ABC", 5U, &mask_font), font_api_length("ABC", 5U, &baked_font), "5 px: the 5 px size");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(font_api_length("ABC", 7U, &mask_font_10), font_api_length("ABC", 7U, &baked_font), "7 px: from the 10 px size");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(font_api_length("ABC", 23U, &mask_font_10), font_api_length("ABC", 23U, &baked_font), "above every size: the largest");
+    TEST_ASSERT_NOT_EQUAL(font_api_length("ABC", 7U, &mask_font), font_api_length("ABC", 7U, &mask_font_10));
+}
+
+void test_baked_size_drawn_from_the_picked_size(void) {
+    struct FontBounds picked;
+    struct FontBounds direct;
+    font_api_bounds(3U, 1U, FONT_ALIGN_CENTER, &baked_font, "CAB", 7U, &picked);
+    font_api_bounds(3U, 1U, FONT_ALIGN_CENTER, &mask_font_10, "CAB", 7U, &direct);
+    TEST_ASSERT_EQUAL_MEMORY(&direct, &picked, sizeof(picked));
+    assert_box_filtered(&baked_font, 40U, 3U, FONT_ALIGN_LEFT, "CAB", 7U, TEST_MASK_CAPACITY);
+}
+
+void test_baked_size_matching_is_drawn_one_to_one(void) {
+    /* The exact size needs one byte per pixel: a mask of exactly width x height is enough. */
+    struct FontBounds bounds;
+    font_api_bounds(10U, 3U, FONT_ALIGN_LEFT, &baked_font, "ABCAB", 10U, &bounds);
+    const struct RasterMask mask = { .buffer = mask_scratch, .size = (uint32_t)bounds.width * bounds.height };
+    TEST_ASSERT_EQUAL(RASTER_RC_OK, font_api_draw(10U, 3U, FONT_ALIGN_LEFT, &baked_font, "ABCAB", text_color, 10U, rect_sink));
+    TEST_ASSERT_EQUAL(RASTER_RC_OK, font_api_draw_masked(10U, 3U, FONT_ALIGN_LEFT, &baked_font, "ABCAB", text_color, 10U, &mask, mask_sink));
+    TEST_ASSERT_EQUAL_MESSAGE(1U, mask_calls, "one band");
+    TEST_ASSERT_EQUAL_UINT8_ARRAY(rect_map, mask_map, sizeof(rect_map));
 }
 
 /*! \} */
@@ -254,7 +370,7 @@ static void init_boxes(void) {
 
 void test_label_masked_matches_label_rectangles(void) {
     const struct RasterMask mask = { .buffer = mask_scratch, .size = TEST_MASK_CAPACITY };
-    label_api_init(&test_label, "BCA", 0, 0, &mask_font, 13U, FONT_ALIGN_CENTER, text_color);
+    label_api_init(&test_label, "BCA", 0, 0, &mask_font, 5U, FONT_ALIGN_CENTER, text_color);
     TEST_ASSERT_EQUAL(RASTER_RC_OK, label_api_draw(&test_label, 60U, 5U, rect_sink));
     TEST_ASSERT_EQUAL(RASTER_RC_OK, label_api_draw_masked(&test_label, 60U, 5U, &mask, mask_sink));
     TEST_ASSERT_EQUAL_UINT8_ARRAY(rect_map, mask_map, sizeof(rect_map));
@@ -336,14 +452,19 @@ int main(void) {
     UNITY_BEGIN();
 
     RUN_TEST(test_masked_matches_rectangles_native_size);
-    RUN_TEST(test_masked_matches_rectangles_fractional_scale_centered);
-    RUN_TEST(test_masked_matches_rectangles_right_aligned_upscaled);
+    RUN_TEST(test_masked_box_filters_fractional_scale_centered);
+    RUN_TEST(test_masked_box_filters_downscaled);
+    RUN_TEST(test_masked_box_filters_right_aligned_upscaled);
     RUN_TEST(test_masked_bands_when_mask_is_small);
+    RUN_TEST(test_masked_scaled_needs_two_bytes_per_pixel);
     RUN_TEST(test_masked_blends_with_the_text_color);
     RUN_TEST(test_masked_rejects_mask_narrower_than_text);
     RUN_TEST(test_masked_empty_or_unknown_text_draws_nothing);
     RUN_TEST(test_masked_propagates_callback_error);
     RUN_TEST(test_masked_null_arguments);
+    RUN_TEST(test_baked_size_picks_the_smallest_one_at_least_as_tall);
+    RUN_TEST(test_baked_size_drawn_from_the_picked_size);
+    RUN_TEST(test_baked_size_matching_is_drawn_one_to_one);
 
     RUN_TEST(test_bounds_width_and_alignment);
     RUN_TEST(test_bounds_height_is_tallest_scaled_glyph);

@@ -49,10 +49,10 @@ raster_api_init(&raster, boxes, box_count, draw_rectangle, NULL);
 raster_api_set_mask(&raster, draw_mask, mask, sizeof(mask));
 ```
 
-The scratch must hold at least one row of the widest label; taller labels are
-rendered in bands of as many rows as fit. The output covers exactly the pixels
-of the rectangle path; where scaled runs overlap by a pixel the mask keeps the
-higher coverage instead of blending twice. Passing a NULL callback goes back to
+The scratch must hold at least one row of the widest label (two bytes per
+pixel when the label is scaled); taller labels are rendered in bands of as many
+rows as fit. At a font's native size the output covers exactly the pixels of
+the rectangle path; at any other size it is box filtered (see Baked sizes). Passing a NULL callback goes back to
 rectangles only. `font_api_draw_masked`, `label_api_draw_masked` and
 `box_api_draw_masked` are available for direct use.
 
@@ -88,6 +88,36 @@ python tools/generator.py --json path/to/fonts.json --output path/to/output
 This writes `fonts.c` and `fonts.h` into the output directory. Each font
 in the JSON becomes an `extern const struct Font font_<name>;` declaration
 in the header.
+
+### Baked sizes
+
+`"size"` + `"edges"` store one large SDF master that is scaled to every
+requested pixel size at draw time. Small text scaled down from it loses
+weight accuracy and anti-aliasing, and every draw walks the whole master.
+For sharper text that is also cheaper to draw, list the pixel heights to
+bake instead:
+
+```json
+[
+    {
+        "name": "inter",
+        "font": "InterBold.ttf",
+        "sizes": [16, 40, 150],
+        "characters": "A-Za-z0-9 .%"
+    }
+]
+```
+
+Each height is rendered by FreeType (hinted, anti-aliased) at exactly that
+line height (ascent + descent). `font_<name>` stays the single handle:
+drawing picks the smallest baked size at least as tall as the requested
+`pixel_size` (the largest one above that). A matching size is drawn 1:1;
+with a mask (`raster_api_set_mask`) any other size is box filtered, every
+pixel getting the area-weighted average of the glyph pixels behind it, so
+strokes keep their weight. While summing, a scaled label takes two bytes of
+mask per pixel. Bake the sizes your UI uses most, and one at least as tall
+as the largest text (scaling up is blocky). A font can use either `"sizes"`
+or `"size"` + `"edges"`, not both.
 
 ### Wiring into PlatformIO
 
@@ -172,7 +202,7 @@ raster -> box -> label -> font
 
 | Header                           | Holds                                                      |
 |----------------------------------|------------------------------------------------------------|
-| `font.h` / `font-api.h`          | Fonts, glyphs, SDF rendering |
+| `font.h` / `font-api.h`          | Fonts, glyphs, baked sizes, scaling |
 | `label.h` / `label-api.h`        | Standalone text element with a font reference              |
 | `box.h` / `box-api.h`            | Rectangular region with background color and optional label |
 | `raster.h` / `raster-api.h`      | Stateless orchestrator over a flat array of boxes          |
