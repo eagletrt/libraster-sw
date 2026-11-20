@@ -98,26 +98,29 @@ def render_glyph(font: ImageFont.FreeTypeFont, char: str, total_height: int, asc
     return np.array(image), width, total_height
 
 
-def build_font_data(font_json: dict, json_dir: Path) -> dict:
-    """Build per-font payload (sdf bytes, glyph metadata, base size)."""
-    ttf_path = json_dir / font_json["font"]
-    pil_font = ImageFont.truetype(str(ttf_path), font_json["size"])
+def face_for_height(ttf_path: Path, height: int) -> ImageFont.FreeTypeFont:
+    """Largest FreeType size whose line height (ascent + descent) fits in height pixels."""
+    low, high = 1.0, float(height) * 2.0
+    for _ in range(40):
+        middle = (low + high) / 2
+        ascent, descent = ImageFont.truetype(str(ttf_path), middle).getmetrics()
+        if ascent + descent > height:
+            high = middle
+        else:
+            low = middle
+    return ImageFont.truetype(str(ttf_path), low)
 
-    ascent, descent = pil_font.getmetrics()
-    total_height = ascent + descent
 
-    chars = parse_char_set(font_json["characters"])
-    edge0, edge1 = font_json["edges"]
-
+def build_strike(pil_font: ImageFont.FreeTypeFont, chars: list[str], total_height: int, coverage) -> dict:
+    """Render every glyph at one size: RLE stream, glyph metadata, base size."""
+    ascent = pil_font.getmetrics()[0]
     sdf_stream: list[int] = []
     glyphs: list[dict] = []
 
     for char in chars:
         bitmap_8bit, width, height = render_glyph(
             pil_font, char, total_height, ascent)
-        bitmap = bitmap_8bit > 128
-        sdf = compute_sdf(bitmap, edge0, edge1)
-        pixels = list(sdf.flatten())
+        pixels = list(coverage(bitmap_8bit).flatten())
         compressed = compress_rle(pixels)
 
         offset = len(sdf_stream)
@@ -133,10 +136,40 @@ def build_font_data(font_json: dict, json_dir: Path) -> dict:
         })
 
     return {
-        "name": font_json["name"],
         "base_size": total_height,
         "sdfs": sdf_stream,
         "glyphs": glyphs,
+    }
+
+
+def build_font_data(font_json: dict, json_dir: Path) -> dict:
+    """Build per-font payload: one strike per size, the largest one first in the Font struct.
+
+    "size" + "edges": one SDF master scaled at draw time (legacy).
+    "sizes": the anti-aliased FreeType coverage baked at each pixel height; the
+    renderer draws the matching size 1:1 and scales the others down from the
+    next larger one.
+    """
+    ttf_path = json_dir / font_json["font"]
+    chars = parse_char_set(font_json["characters"])
+
+    if "sizes" in font_json:
+        if "size" in font_json or "edges" in font_json:
+            raise ValueError(f"font {font_json['name']}: use either \"sizes\" or \"size\" + \"edges\"")
+        heights = sorted(set(int(h) for h in font_json["sizes"]))
+        if not heights or heights[0] < 1:
+            raise ValueError(f"font {font_json['name']}: \"sizes\" needs positive pixel heights")
+        strikes = [build_strike(face_for_height(ttf_path, h), chars, h, lambda bitmap: bitmap) for h in heights]
+    else:
+        pil_font = ImageFont.truetype(str(ttf_path), font_json["size"])
+        ascent, descent = pil_font.getmetrics()
+        edge0, edge1 = font_json["edges"]
+        strikes = [build_strike(pil_font, chars, ascent + descent, lambda bitmap: compute_sdf(bitmap > 128, edge0, edge1))]
+
+    return {
+        "name": font_json["name"],
+        "strikes": strikes,
+        "baked": "sizes" in font_json,
     }
 
 
