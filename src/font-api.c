@@ -5,10 +5,15 @@
  *
  * \brief Glyph rendering implementation.
  *
- * \details Glyphs are stored as RLE-compressed SDF coverage values, packed
- *     as pairs of (alpha_byte, count_byte). The alpha byte is the coverage
- *     value for that run and is emitted unchanged into the ARGB alpha
- *     channel.
+ * \details Glyphs are stored as RLE-compressed coverage values (an SDF
+ *     master or sizes baked from FreeType), packed as pairs of (alpha_byte,
+ *     count_byte). The alpha byte is the coverage value for that run and is
+ *     emitted unchanged into the ARGB alpha channel.
+ *
+ *     A font with baked sizes is drawn from the smallest one at least as tall
+ *     as the request. The masked path draws a matching size 1:1 and box
+ *     filters any other (area-weighted average of the glyph pixels behind each
+ *     screen pixel); the rectangle path scales by mapping runs to rectangles.
  *
  *     Scaling uses Q16 fixed-point so the renderer never needs an FPU.
  *
@@ -19,7 +24,6 @@
  */
 
 #include "font-api.h"
-#include "eagletrt.h"
 #include "eagletrt-api.h"
 #include <stdbool.h>
 #include <stddef.h>
@@ -117,6 +121,101 @@ EAGLETRT_STATIC uint8_t prv_utf8_decode(const char *text, uint32_t *codepoint) {
     }
     *codepoint = accumulator;
     return expected_byte_count;
+}
+
+/*!
+ * \brief Window of the coverage mask being rendered by font_api_draw_masked.
+ *
+ * \details The glyph rasterizer only knows rectangle callbacks, which carry no
+ *     user context, so the mask it writes into is kept here. Rendering is
+ *     therefore not reentrant (one string at a time), like the rest of the
+ *     single-threaded render path.
+ */
+struct FontMaskTarget {
+    uint8_t *buffer; /*!< Mask rows, stride \c width */
+    uint16_t x;      /*!< Screen X of the first mask column */
+    uint16_t y;      /*!< Screen Y of the first mask row */
+    uint16_t width;  /*!< Mask width, in pixels */
+    uint16_t height; /*!< Rows held by the mask (one band) */
+    bool touched;    /*!< At least one pixel was written */
+    bool accumulate; /*!< Scaled text: runs add area-weighted coverage into 16-bit sums */
+};
+
+EAGLETRT_STATIC struct FontMaskTarget font_mask_target;
+
+/*!
+ * \brief Add one source run to the 16-bit coverage sums of the mask window.
+ *
+ * \details Box filter: every output pixel gets alpha times the fraction of
+ *     its area the run covers, so a glyph scaled down keeps its stroke weight
+ *     and anti-aliased edges. The rectangle (x0, y0)-(x1, y1) is in Q16 output
+ *     pixels relative to the window. Sums are kept in Q8 (alpha 255 over the
+ *     whole pixel = 0xFF00), two bytes per pixel, little endian, so the
+ *     buffer needs no alignment.
+ *
+ * \param[in] alpha Coverage of the run.
+ * \param[in] x0    Left edge, Q16.
+ * \param[in] x1    Right edge, Q16.
+ * \param[in] y0    Top edge, Q16.
+ * \param[in] y1    Bottom edge, Q16.
+ */
+EAGLETRT_STATIC void prv_mask_accumulate(uint8_t alpha, int32_t x0, int32_t x1, int32_t y0, int32_t y1) {
+    constexpr int32_t one = 0x10000;
+    // Clamped at 0 first, so dividing rounds the way flooring would.
+    const int32_t row_start = EAGLETRT_API_MAX(y0, 0) / one;
+    const int32_t row_end = EAGLETRT_API_MIN(EAGLETRT_API_MAX(y1 + one - 1, 0) / one, (int32_t)font_mask_target.height);
+    const int32_t col_start = EAGLETRT_API_MAX(x0, 0) / one;
+    const int32_t col_end = EAGLETRT_API_MIN(EAGLETRT_API_MAX(x1 + one - 1, 0) / one, (int32_t)font_mask_target.width);
+    for (int32_t row = row_start; row < row_end; ++row) {
+        const uint32_t vertical = (uint32_t)(EAGLETRT_API_MIN(y1, (row + 1) * one) - EAGLETRT_API_MAX(y0, row * one)) >> 8U;
+        uint8_t *line = font_mask_target.buffer + ((size_t)2U * (size_t)row * font_mask_target.width);
+        for (int32_t col = col_start; col < col_end; ++col) {
+            const uint32_t horizontal = (uint32_t)(EAGLETRT_API_MIN(x1, (col + 1) * one) - EAGLETRT_API_MAX(x0, col * one)) >> 8U;
+            const uint32_t add = ((uint32_t)alpha * horizontal * vertical + 0x80U) >> 8U;
+            uint8_t *cell = line + ((size_t)2U * (size_t)col);
+            const uint32_t sum = EAGLETRT_API_MIN((uint32_t)cell[0] + ((uint32_t)cell[1] << 8U) + add, 0xFFFFU);
+            cell[0] = (uint8_t)sum;
+            cell[1] = (uint8_t)(sum >> 8U);
+        }
+    }
+    if (row_start < row_end && col_start < col_end) {
+        font_mask_target.touched = true;
+    }
+}
+
+/*!
+ * \brief Accumulate a run of glyph pixels, splitting it at glyph row boundaries.
+ *
+ * \param[in]     alpha          Coverage of the run.
+ * \param[in]     count          Number of glyph-native pixels in the run.
+ * \param[in]     glyph_width    Glyph width in native pixels.
+ * \param[in]     multiplier_q16 Q16 scaling factor.
+ * \param[in]     origin_x       Screen X origin of the glyph.
+ * \param[in]     origin_y       Screen Y origin of the glyph.
+ * \param[in,out] current_x      Glyph-local X cursor.
+ * \param[in,out] current_y      Glyph-local Y cursor.
+ */
+EAGLETRT_STATIC void prv_accumulate_run(uint8_t alpha, uint16_t count, uint16_t glyph_width, uint32_t multiplier_q16, uint16_t origin_x, uint16_t origin_y, int16_t *current_x, int16_t *current_y) {
+    // Window-relative origin, modulo 2^16 like the rectangle path.
+    const int32_t left = (int32_t)(int16_t)(uint16_t)(origin_x - font_mask_target.x) * 0x10000;
+    const int32_t top = (int32_t)(int16_t)(uint16_t)(origin_y - font_mask_target.y) * 0x10000;
+    while (count > 0U) {
+        const uint16_t available = (uint16_t)(glyph_width - (uint16_t)*current_x);
+        const uint16_t take = count < available ? count : available;
+        if (alpha != 0U) {
+            prv_mask_accumulate(alpha,
+                                left + (int32_t)((uint32_t)*current_x * multiplier_q16),
+                                left + (int32_t)((uint32_t)(*current_x + take) * multiplier_q16),
+                                top + (int32_t)((uint32_t)*current_y * multiplier_q16),
+                                top + (int32_t)((uint32_t)(*current_y + 1) * multiplier_q16));
+        }
+        *current_x = (int16_t)(*current_x + (int16_t)take);
+        count -= take;
+        if (*current_x >= (int16_t)glyph_width) {
+            *current_x = 0;
+            (*current_y)++;
+        }
+    }
 }
 
 /*!
@@ -223,6 +322,10 @@ EAGLETRT_STATIC enum RasterReturnCode prv_render_glyph(const struct FontGlyph *g
             continue;
         }
 
+        if (font_mask_target.accumulate) {
+            prv_accumulate_run(alpha, count, glyph_width, multiplier_q16, origin_x, origin_y, &current_x, &current_y);
+            continue;
+        }
         enum RasterReturnCode return_code = prv_emit_run(alpha, count, glyph_width, multiplier_q16, origin_x, origin_y, base_argb, &current_x, &current_y, draw);
         if (return_code != RASTER_RC_OK) {
             return return_code;
@@ -231,25 +334,6 @@ EAGLETRT_STATIC enum RasterReturnCode prv_render_glyph(const struct FontGlyph *g
 
     return RASTER_RC_OK;
 }
-
-/*!
- * \brief Window of the coverage mask being rendered by font_api_draw_masked.
- *
- * \details The glyph rasterizer only knows rectangle callbacks, which carry no
- *     user context, so the mask it writes into is kept here. Rendering is
- *     therefore not reentrant (one string at a time), like the rest of the
- *     single-threaded render path.
- */
-struct FontMaskTarget {
-    uint8_t *buffer; /*!< Mask rows, stride \c width */
-    uint16_t x;      /*!< Screen X of the first mask column */
-    uint16_t y;      /*!< Screen Y of the first mask row */
-    uint16_t width;  /*!< Mask width, in pixels */
-    uint16_t height; /*!< Rows held by the mask (one band) */
-    bool touched;    /*!< At least one pixel was written */
-};
-
-EAGLETRT_STATIC struct FontMaskTarget font_mask_target;
 
 /*!
  * \brief Rectangle callback that writes coverage into font_mask_target.
@@ -345,6 +429,28 @@ EAGLETRT_STATIC enum RasterReturnCode prv_render_text(uint16_t x, uint16_t y, co
     return RASTER_RC_OK;
 }
 
+/*!
+ * \brief The baked size a request is drawn from.
+ *
+ * \param[in] font       Font, with or without baked sizes.
+ * \param[in] pixel_size Requested pixel height.
+ *
+ * \return The smallest baked size at least \p pixel_size tall, the largest
+ *     one when none is, \p font itself when it has no sizes.
+ */
+EAGLETRT_STATIC const struct Font *prv_font_for_size(const struct Font *font, uint16_t pixel_size) {
+    if (font == NULL || font->sizes == NULL || font->size_count == 0U) {
+        return font;
+    }
+    for (uint8_t i = 0U; i < font->size_count; ++i) {
+        if (font->sizes[i] != NULL && font->sizes[i]->base_size >= pixel_size) {
+            return font->sizes[i];
+        }
+    }
+    const struct Font *largest = font->sizes[font->size_count - 1U];
+    return largest != NULL ? largest : font;
+}
+
 const struct FontGlyph *font_api_find_glyph(const struct Font *font, uint32_t codepoint) {
     if (font == NULL || font->find_glyph == NULL) {
         return NULL;
@@ -353,6 +459,7 @@ const struct FontGlyph *font_api_find_glyph(const struct Font *font, uint32_t co
 }
 
 uint16_t font_api_length(const char *text, uint16_t pixel_size, const struct Font *font) {
+    font = prv_font_for_size(font, pixel_size);
     if (text == NULL || font == NULL || font->base_size == 0U) {
         return 0U;
     }
@@ -380,6 +487,7 @@ enum RasterReturnCode font_api_draw(uint16_t x, uint16_t y, enum FontAlignment a
     if (font == NULL || text == NULL || draw == NULL) {
         return RASTER_RC_NULL_POINTER;
     }
+    font = prv_font_for_size(font, pixel_size);
     if (font->base_size == 0U) {
         return RASTER_RC_OK;
     }
@@ -401,6 +509,7 @@ enum RasterReturnCode font_api_bounds(uint16_t x, uint16_t y, enum FontAlignment
         return RASTER_RC_NULL_POINTER;
     }
     *bounds = (struct FontBounds){ .x = x, .y = y, .width = 0U, .height = 0U };
+    font = prv_font_for_size(font, pixel_size);
     if (font->base_size == 0U) {
         return RASTER_RC_OK;
     }
@@ -439,15 +548,19 @@ enum RasterReturnCode font_api_draw_masked(uint16_t x, uint16_t y, enum FontAlig
         return RASTER_RC_OK;
     }
 
-    const uint32_t rows_per_band = mask->size / bounds.width;
+    font = prv_font_for_size(font, pixel_size);
+    const uint32_t multiplier_q16 = ((uint32_t)pixel_size << 16) / font->base_size;
+    // A drawn size other than the native one is box-filtered: two bytes per pixel while summing.
+    const bool accumulate = multiplier_q16 != 0x10000U;
+    const uint32_t bytes_per_pixel = accumulate ? 2U : 1U;
+    const uint32_t rows_per_band = mask->size / (bytes_per_pixel * bounds.width);
     if (rows_per_band == 0U) {
         return RASTER_RC_ERROR; // the mask cannot hold even one row of this text
     }
 
-    const uint32_t multiplier_q16 = ((uint32_t)pixel_size << 16) / font->base_size;
     for (uint16_t band_y = 0U; band_y < bounds.height;) {
         const uint16_t band_height = (uint16_t)EAGLETRT_API_MIN(rows_per_band, (uint32_t)(bounds.height - band_y));
-        memset(mask->buffer, 0, (size_t)bounds.width * band_height);
+        memset(mask->buffer, 0, (size_t)bytes_per_pixel * bounds.width * band_height);
         font_mask_target = (struct FontMaskTarget){
             .buffer = mask->buffer,
             .x = bounds.x,
@@ -455,11 +568,22 @@ enum RasterReturnCode font_api_draw_masked(uint16_t x, uint16_t y, enum FontAlig
             .width = bounds.width,
             .height = band_height,
             .touched = false,
+            .accumulate = accumulate,
         };
 
         // Every glyph is decoded once per band; runs outside the band are clipped away.
-        if (prv_render_text(bounds.x, bounds.y, font, text, color, multiplier_q16, prv_mask_draw) != RASTER_RC_OK) {
+        const enum RasterReturnCode rc = prv_render_text(bounds.x, bounds.y, font, text, color, multiplier_q16, prv_mask_draw);
+        font_mask_target.accumulate = false;
+        if (rc != RASTER_RC_OK) {
             return RASTER_RC_ERROR;
+        }
+        if (accumulate) {
+            // Sums back to 8-bit coverage in place: pixel i is read from 2i and 2i + 1 before byte i is written.
+            const uint32_t pixels = (uint32_t)bounds.width * band_height;
+            for (uint32_t i = 0U; i < pixels; ++i) {
+                const uint32_t sum = (uint32_t)mask->buffer[(size_t)2U * i] + ((uint32_t)mask->buffer[((size_t)2U * i) + 1U] << 8U);
+                mask->buffer[i] = (uint8_t)EAGLETRT_API_MIN((sum + 0x80U) >> 8U, 0xFFU);
+            }
         }
         if (font_mask_target.touched &&
             draw_mask(bounds.x, (uint16_t)(bounds.y + band_y), bounds.width, band_height, mask->buffer, color) != RASTER_RC_OK) {

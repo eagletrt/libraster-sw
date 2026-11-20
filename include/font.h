@@ -28,7 +28,7 @@ enum FontAlignment {
 /*!
  * \brief Metadata for a single glyph inside a Font.
  *
- * \details Glyphs are stored as RLE-compressed SDF coverage data. The actual
+ * \details Glyphs are stored as RLE-compressed coverage data. The actual
  *     bytes live in Font::sdf_data; this struct only describes the slice
  *     belonging to one Unicode codepoint.
  */
@@ -57,13 +57,20 @@ typedef const struct FontGlyph *(*font_find_glyph_callback)(uint32_t codepoint);
 
 /*!
  * \brief A rasterizable font.
+ *
+ * \details A font generated with "sizes" also lists its baked sizes: the
+ *     renderer draws the smallest one at least as tall as the requested
+ *     pixel size (1:1 when it matches, scaled down otherwise) and the largest
+ *     one above that. Without sizes the font itself is the only one.
  */
 struct Font {
     uint16_t base_size;                  /*!< Native pixel height the glyphs were generated at */
-    const uint8_t *sdf_data;             /*!< RLE-compressed SDF data for all glyphs */
+    const uint8_t *sdf_data;             /*!< RLE-compressed coverage (SDF or baked) for all glyphs */
     const struct FontGlyph *glyphs;      /*!< Glyph table, sorted by character */
     uint16_t glyph_count;                /*!< Number of entries in glyphs[] */
     font_find_glyph_callback find_glyph; /*!< Per-font glyph lookup, generated as a switch-case */
+    const struct Font *const *sizes;     /*!< Baked sizes, smallest first; NULL when the font has one */
+    uint8_t size_count;                  /*!< Number of entries in sizes[] */
 };
 
 /*!

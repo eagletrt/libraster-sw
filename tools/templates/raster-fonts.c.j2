@@ -8,32 +8,56 @@
 #include <stddef.h>
 
 {% for font in fonts %}
-static const uint8_t sdf_data_{{ font.name }}[] = {
-{%- for chunk in font.sdfs|batch(12) %}
+{%- for strike in font.strikes %}
+{%- set id = (font.name ~ "_" ~ strike.base_size) if font.baked else font.name %}
+static const uint8_t sdf_data_{{ id }}[] = {
+{%- for chunk in strike.sdfs|batch(12) %}
     {% for value in chunk %}{{ value }}, {% endfor %}
 {%- endfor %}
 };
 
-static const struct FontGlyph glyphs_{{ font.name }}[] = {
-{%- for g in font.glyphs %}
+static const struct FontGlyph glyphs_{{ id }}[] = {
+{%- for g in strike.glyphs %}
     { 0x{{ "%04X"|format(g.codepoint) }}, {{ g.offset }}, {{ g.size }}, {{ g.width }}, {{ g.height }} }, /* {{ g.display }} */
 {%- endfor %}
 };
 
-static const struct FontGlyph *find_glyph_{{ font.name }}(uint32_t codepoint) {
+static const struct FontGlyph *find_glyph_{{ id }}(uint32_t codepoint) {
     switch (codepoint) {
-{%- for g in font.glyphs %}
-        case 0x{{ "%04X"|format(g.codepoint) }}: return &glyphs_{{ font.name }}[{{ loop.index0 }}]; /* {{ g.display }} */
+{%- for g in strike.glyphs %}
+        case 0x{{ "%04X"|format(g.codepoint) }}: return &glyphs_{{ id }}[{{ loop.index0 }}]; /* {{ g.display }} */
 {%- endfor %}
         default: return NULL;
     }
 }
-
+{% if font.baked %}
+static const struct Font font_{{ id }} = {
+    .base_size = {{ strike.base_size }},
+    .sdf_data = sdf_data_{{ id }},
+    .glyphs = glyphs_{{ id }},
+    .glyph_count = {{ strike.glyphs|length }},
+    .find_glyph = find_glyph_{{ id }},
+};
+{% endif %}
+{%- endfor %}
+{%- set largest = font.strikes|last %}
+{%- set largest_id = (font.name ~ "_" ~ largest.base_size) if font.baked else font.name %}
+{%- if font.baked %}
+static const struct Font *const font_{{ font.name }}_sizes[] = {
+{%- for strike in font.strikes %}
+    &font_{{ font.name }}_{{ strike.base_size }},
+{%- endfor %}
+};
+{% endif %}
 const struct Font font_{{ font.name }} = {
-    .base_size = {{ font.base_size }},
-    .sdf_data = sdf_data_{{ font.name }},
-    .glyphs = glyphs_{{ font.name }},
-    .glyph_count = {{ font.glyphs|length }},
-    .find_glyph = find_glyph_{{ font.name }},
+    .base_size = {{ largest.base_size }},
+    .sdf_data = sdf_data_{{ largest_id }},
+    .glyphs = glyphs_{{ largest_id }},
+    .glyph_count = {{ largest.glyphs|length }},
+    .find_glyph = find_glyph_{{ largest_id }},
+{%- if font.baked %}
+    .sizes = font_{{ font.name }}_sizes,
+    .size_count = {{ font.strikes|length }},
+{%- endif %}
 };
 {% endfor %}
